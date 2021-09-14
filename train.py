@@ -11,7 +11,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import RandomSampler, DataLoader
 
 from podium import BucketIterator
 
@@ -73,12 +72,6 @@ def make_parser():
   parser.add_argument('--gpu', type=int, default=-1,
                         help='Gpu to use for experiments (-1 means no GPU)')
 
-  # Compute only MI
-  parser.add_argument('--load_and_mi', action='store_true',
-                      help="Only load mutual information and exit")
-  parser.add_argument('--break_after_mi', action='store_true', 
-                    help='Exit after computing MI')
-
   # Storing & loading arguments
   parser.add_argument('--save', type=str, default='chkp/',
                         help='Folder to store final model (or model with best valid perf) in')
@@ -114,7 +107,6 @@ def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
   encoder = RNNSequenceEncoder(args, meta)
-  # Move this to meta before
   model = LinearDecoder(encoder, args, meta)
 
   return model
