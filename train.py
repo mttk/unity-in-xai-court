@@ -169,7 +169,8 @@ def interpret_instance(model, numericalized_instance):
     lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
     return_dict = model(numericalized_instance, lengths, use_mask=False)
     pred = return_dict['output'].item() # obtain prediction
-    scaled_pred = nn.Sigmoid(pred) # scale to probability
+    print(pred)
+    scaled_pred = nn.Sigmoid()(pred) # scale to probability
 
     # Reference indices are just a bunch of padding indices
     reference_indices = [0] * len(numericalized_instancem)
