@@ -214,10 +214,10 @@ class RNNSequenceEncoder(nn.Module):
     self.permute = permute
 
   def forward(self, x, lengths=None, p_mask=None):
-    print("Inputs device:", x.device)
     e = self.embedding(x)
 
     if lengths is not None:
+      # Lengths has to be on cpu for packing (?)
       lengths = lengths.cpu()
       h = torch.nn.utils.rnn.pack_padded_sequence(e, batch_first=True, lengths=lengths)
 
