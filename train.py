@@ -140,8 +140,7 @@ def evaluate(model, data, args, meta):
 
       y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
-      return_dict = model(x, lengths)
-      logits = return_dict['output']
+      logits, return_dict = model(x, lengths)
       attn = return_dict['attn'].squeeze()
 
       # Bookkeeping and cast label to float
@@ -168,8 +167,8 @@ def interpret_instance(model, numericalized_instance):
   with torch.inference_mode():
     numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
     lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-    return_dict = model(numericalized_instance, lengths, use_mask=False)
-    pred = return_dict['output'].squeeze() # obtain prediction
+    logits, return_dict = model(numericalized_instance, lengths, use_mask=False)
+    pred = logits.squeeze() # obtain prediction
     print(pred)
     scaled_pred = nn.Sigmoid()(pred) # scale to probability
 
@@ -199,8 +198,7 @@ def train(model, data, optimizer, criterion, args, meta):
 
     y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
-    return_dict = model(x, lengths)
-    logits = return_dict['output']
+    logits, return_dict = model(x, lengths)
     attn = return_dict['attn'].squeeze()
 
     # Bookkeeping and cast label to float

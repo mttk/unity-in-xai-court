@@ -152,7 +152,7 @@ class LinearDecoder(nn.Module):
     return_dict = self.encoder(inputs, lengths, p_mask=p_mask, use_mask=use_mask)
 
     return_dict['output'] = self.decoder(return_dict['output'])
-    return return_dict
+    return return_dict['output'], return_dict
 
 
 class LayeredRNN(nn.Module):
