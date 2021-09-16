@@ -18,6 +18,7 @@ from captum.attr import (
     DeepLiftShap,
     IntegratedGradients,
     LayerIntegratedGradients,
+    TokenReferenceBase,
     LayerConductance,
     NeuronConductance,
     NoiseTunnel,
@@ -173,7 +174,9 @@ def interpret_instance(model, numericalized_instance):
     scaled_pred = nn.Sigmoid()(pred) # scale to probability
 
     # Reference indices are just a bunch of padding indices
-    reference_indices = [0] * len(numericalized_instance)
+    token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
+    reference_indices = token_reference.generate_reference(len(numericalized_instance), 
+                                                            device=next(iter(model.parameters())).device).unsqueeze(0)
 
     attributions, delta = lig.attribute(numericalized_instance, reference_indices,
                                         n_steps=500, return_convergence_delta=True)
