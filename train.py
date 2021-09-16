@@ -12,6 +12,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from captum.attr import (
+    GradientShap,
+    DeepLift,
+    DeepLiftShap,
+    IntegratedGradients,
+    LayerConductance,
+    NeuronConductance,
+    NoiseTunnel,
+)
+
 from podium import BucketIterator
 
 from util import Config
@@ -115,7 +125,6 @@ def evaluate(model, data, args, meta):
   model.eval()
 
   accuracy, confusion_matrix = 0, np.zeros((meta.num_labels, meta.num_labels), dtype=int)
-  total_loss = 0.
 
   with torch.inference_mode():
     for batch_num, batch in enumerate(data):
@@ -149,6 +158,20 @@ def evaluate(model, data, args, meta):
     'loss' : total_loss / len(data) / data.batch_size
   }
   return result_dict
+
+def interpret(model, data):
+  model.eval()
+  ig = IntegratedGradients(model)
+
+  with torch.inference_mode():
+    for batch_num, batch in enumerate(data):
+      (x, lengths), y = batch.text, batch.label
+
+      baseline = torch.zeros_like(x)
+      attributions, delta = ig.attribute(data, baseline, target=0, return_convergence_delta=True)
+      print('IG Attributions:', attributions)
+      print('Convergence Delta:', delta)
+      break
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):
@@ -194,7 +217,6 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   # Input: model arguments and dataset splits, whether to restore the model
   # Constructor delegated to args selector of attention
 
-  print("Evaluating...")
   # Just to be safe
   args = copy.deepcopy(args)
 
@@ -246,6 +268,9 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
+      interpret(model, val_iter)
+
+      print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
       loss = result_dict['loss']
 
@@ -270,7 +295,6 @@ def main():
   args = make_parser()
   (train, val, test), vocab = load_imdb()
   meta = Config()
-  meta.num_targets = 1
   meta.num_labels = 2
   meta.num_tokens = len(vocab)
 
