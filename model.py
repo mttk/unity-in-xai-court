@@ -236,7 +236,7 @@ class RNNSequenceEncoder(nn.Module):
       else:
         h = h[-1]
 
-    if use_mask:
+    if use_mask and lengths is not None:
       m = create_pad_mask_from_length(x, lengths)
       if p_mask is not None:
         #print(m.shape, p_mask.shape)
