@@ -218,6 +218,7 @@ class RNNSequenceEncoder(nn.Module):
     e = self.embedding(x)
 
     if lengths is not None:
+      lengths = lengths.cpu()
       h = torch.nn.utils.rnn.pack_padded_sequence(e, batch_first=True, lengths=lengths)
 
       outs, h = self.rnn(h)
