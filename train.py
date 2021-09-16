@@ -155,11 +155,8 @@ def train(model, data, optimizer, criterion, args, meta):
   total_loss = 0.
 
   for batch_num, batch in enumerate(data):
-    #if batch_num > 100: break # checking beer imitation
 
     t = time.time()
-    model.zero_grad()
-
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
 
@@ -243,7 +240,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      result_dict = evaluate(model, val_iter, optimizer, criterion, args, meta)
+      result_dict = evaluate(model, val_iter, args, meta)
       loss = result_dict['loss']
 
       if best_valid_loss is None or loss < best_valid_loss:
