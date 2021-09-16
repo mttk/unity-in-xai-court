@@ -175,7 +175,6 @@ def interpret_instance(model, numericalized_instance):
     # Reference indices are just a bunch of padding indices
     reference_indices = [0] * len(numericalized_instance)
 
-    baseline = torch.zeros_like(x)
     attributions, delta = lig.attribute(numericalized_instance, reference_indices,
                                         n_steps=500, return_convergence_delta=True)
     print('IG Attributions:', attributions)
