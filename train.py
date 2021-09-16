@@ -177,7 +177,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   # Initialize model
   model = initialize_model(args, meta)
   model.to(device)
-  print(model.device)
+  print(next(iter(model.parameters())).device)
 
   optimizer = torch.optim.Adam(
         model.parameters(),
