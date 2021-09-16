@@ -214,6 +214,7 @@ class RNNSequenceEncoder(nn.Module):
     self.permute = permute
 
   def forward(self, x, lengths=None, p_mask=None):
+    print("Inputs device:", x.device)
     e = self.embedding(x)
 
     if lengths is not None:
