@@ -165,7 +165,7 @@ def interpret_instance(model, numericalized_instance):
   lig = LayerIntegratedGradients(model, model.encoder.embedding) # LIG uses embedding data
 
   with torch.inference_mode():
-    numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
+    numericalized_instance = numericalized_instance.unsqueeze(1) # Add fake batch dim
     lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
     return_dict = model(numericalized_instance, lengths)
     pred = return_dict['output'].item() # obtain prediction
