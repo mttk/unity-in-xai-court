@@ -157,7 +157,7 @@ class LinearDecoder(nn.Module):
     # Need to handle this better, don't like the other subclassing approach either
     if return_prediction_only:
       return return_dict['output']
-    else
+    else:
       return return_dict['output'], return_dict
 
 class LayeredRNN(nn.Module):
