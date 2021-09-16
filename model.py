@@ -148,12 +148,17 @@ class LinearDecoder(nn.Module):
     self.decoder.weight = module.weight
     self.decoder.requires_grad = module.weight.requires_grad
 
-  def forward(self, inputs, lengths=None, prediction_mask=None, p_mask=None, use_mask=True):
+  def forward(self, inputs, lengths=None, prediction_mask=None, p_mask=None, use_mask=True,
+              pred_only=True):
     return_dict = self.encoder(inputs, lengths, p_mask=p_mask, use_mask=use_mask)
 
     return_dict['output'] = self.decoder(return_dict['output'])
-    return return_dict['output'], return_dict
 
+    # Need to handle this better, don't like the other subclassing approach either
+    if return_prediction_only:
+      return return_dict['output']
+    else
+      return return_dict['output'], return_dict
 
 class LayeredRNN(nn.Module):
   def __init__(self, config, meta):
