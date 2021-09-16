@@ -276,7 +276,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      sample_instance = meta.vocab.numericalize("this is a very nice movie".split())
+      sample_instance = torch.tensor(meta.vocab.numericalize("this is a very nice movie".split()))
+      sample_instance = sample_instance.to(device)
       interpret_instance(model, sample_instance)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
