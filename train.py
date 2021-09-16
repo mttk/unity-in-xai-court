@@ -145,7 +145,10 @@ def evaluate(model, data, args, meta):
   print("[Accuracy]: {}/{} : {:.3f}%".format(
         accuracy, len(data) * data.batch_size, accuracy / len(data) / data.batch_size * 100))
   print(confusion_matrix)
-  return total_loss / len(data)
+  result_dict = {
+    'loss' : total_loss / len(data) / data.batch_size
+  }
+  return result_dict
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):
@@ -181,14 +184,17 @@ def train(model, data, optimizer, criterion, args, meta):
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
-
-  return total_loss / len(data)
+  result_dict = {
+    'loss' : total_loss / len(data) / data.batch_size
+  }
+  return result_dict
 
 
 def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=None):
   # Input: model arguments and dataset splits, whether to restore the model
   # Constructor delegated to args selector of attention
 
+  print("Evaluating...")
   # Just to be safe
   args = copy.deepcopy(args)
 
