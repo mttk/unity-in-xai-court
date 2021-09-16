@@ -17,6 +17,7 @@ from captum.attr import (
     DeepLift,
     DeepLiftShap,
     IntegratedGradients,
+    LayerIntegratedGradients,
     LayerConductance,
     NeuronConductance,
     NoiseTunnel,
@@ -159,19 +160,26 @@ def evaluate(model, data, args, meta):
   }
   return result_dict
 
-def interpret(model, data):
+def interpret_instance(model, numericalized_instance):
   model.eval()
-  ig = IntegratedGradients(model)
+  lig = LayerIntegratedGradients(model, model.encoder.embedding) # LIG uses embedding data
 
   with torch.inference_mode():
-    for batch_num, batch in enumerate(data):
-      (x, lengths), y = batch.text, batch.label
+    numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
+    lengths = len(numericalized_instance).unsqueeze(0)
+    return_dict = model(numericalized_instance, lengths)
+    pred = return_dict['output'].item() # obtain prediction
+    scaled_pred = nn.Sigmoid(pred) # scale to probability
 
-      baseline = torch.zeros_like(x)
-      attributions, delta = ig.attribute(x, baseline, target=0, return_convergence_delta=True)
-      print('IG Attributions:', attributions)
-      print('Convergence Delta:', delta)
-      break
+    # Reference indices are just a bunch of padding indices
+    reference_indices = [0] * len(numericalized_instancem)
+
+    baseline = torch.zeros_like(x)
+    attributions, delta = lig.attribute(numericalized_instance, reference_indices,
+                                        n_steps=500, return_convergence_delta=True)
+    print('IG Attributions:', attributions)
+    print('Convergence Delta:', delta)
+    break
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):
@@ -268,7 +276,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      interpret(model, val_iter)
+      sample_instance = meta.vocab.numericalize("this is a very nice movie".split())
+      interpret(model, sample_instance)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
@@ -297,6 +306,7 @@ def main():
   meta = Config()
   meta.num_labels = 2
   meta.num_tokens = len(vocab)
+  meta.vocab = vocab
 
   experiment(args, meta, train, val, test)
 
