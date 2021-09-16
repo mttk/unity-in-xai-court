@@ -148,8 +148,8 @@ class LinearDecoder(nn.Module):
     self.decoder.weight = module.weight
     self.decoder.requires_grad = module.weight.requires_grad
 
-  def forward(self, inputs, lengths=None, prediction_mask=None, p_mask=None):
-    return_dict = self.encoder(inputs, lengths, p_mask=p_mask)
+  def forward(self, inputs, lengths=None, prediction_mask=None, p_mask=None, use_mask=True):
+    return_dict = self.encoder(inputs, lengths, p_mask=p_mask, use_mask=use_mask)
 
     return_dict['output'] = self.decoder(return_dict['output'])
     return return_dict
@@ -251,8 +251,7 @@ class RNNSequenceEncoder(nn.Module):
     elif self.permute == 'uniform':
       perm = replace_with_uniform(x, lengths).to(x.device)
 
-    #print(o.shape)
-    print("h,o", h.shape, o.shape, m.shape)
+    # print("h,o", h.shape, o.shape, m.shape)
     # h = [B,H] ; o = [T,B,H], m = B,T
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m, permutation=(self.permute, perm))
 
