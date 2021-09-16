@@ -161,26 +161,24 @@ def evaluate(model, data, args, meta):
   return result_dict
 
 def interpret_instance(model, numericalized_instance):
-  model.eval()
   lig = LayerIntegratedGradients(model, model.encoder.embedding) # LIG uses embedding data
 
-  with torch.inference_mode():
-    numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-    lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-    logits, return_dict = model(numericalized_instance, lengths, use_mask=False, pred_only=False)
-    pred = logits.squeeze() # obtain prediction
-    print(pred)
-    scaled_pred = nn.Sigmoid()(pred) # scale to probability
+  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
+  lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
+  logits, return_dict = model(numericalized_instance, lengths, use_mask=False, pred_only=False)
+  pred = logits.squeeze() # obtain prediction
+  print(pred)
+  scaled_pred = nn.Sigmoid()(pred) # scale to probability
 
-    # Reference indices are just a bunch of padding indices
-    token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
-    reference_indices = token_reference.generate_reference(len(numericalized_instance), 
-                                                            device=next(iter(model.parameters())).device).unsqueeze(0)
+  # Reference indices are just a bunch of padding indices
+  token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
+  reference_indices = token_reference.generate_reference(len(numericalized_instance), 
+                                                          device=next(iter(model.parameters())).device).unsqueeze(0)
 
-    attributions, delta = lig.attribute(numericalized_instance, reference_indices,
-                                        n_steps=500, return_convergence_delta=True)
-    print('IG Attributions:', attributions)
-    print('Convergence Delta:', delta)
+  attributions, delta = lig.attribute(numericalized_instance, reference_indices,
+                                      n_steps=500, return_convergence_delta=True)
+  print('IG Attributions:', attributions)
+  print('Convergence Delta:', delta)
 
 
 # For regression & classification
