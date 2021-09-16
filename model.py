@@ -155,7 +155,7 @@ class LinearDecoder(nn.Module):
     return_dict['output'] = self.decoder(return_dict['output'])
 
     # Need to handle this better, don't like the other subclassing approach either
-    if return_prediction_only:
+    if pred_only:
       return return_dict['output']
     else:
       return return_dict['output'], return_dict
