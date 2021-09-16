@@ -179,7 +179,7 @@ def interpret_instance(model, numericalized_instance):
                                         n_steps=500, return_convergence_delta=True)
     print('IG Attributions:', attributions)
     print('Convergence Delta:', delta)
-    break
+
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):
