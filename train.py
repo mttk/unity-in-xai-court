@@ -155,9 +155,7 @@ def evaluate(model, data, args, meta):
   print("[Accuracy]: {}/{} : {:.3f}%".format(
         accuracy, len(data) * data.batch_size, accuracy / len(data) / data.batch_size * 100))
   print(confusion_matrix)
-  result_dict = {
-    'loss' : total_loss / len(data) / data.batch_size
-  }
+  result_dict = {}
   return result_dict
 
 def interpret_instance(model, numericalized_instance):
