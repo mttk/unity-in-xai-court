@@ -162,6 +162,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
   cuda = torch.cuda.is_available() and args.gpu != -1
   device = torch.device("cpu") if not cuda else torch.device(f"cuda:{args.gpu}")
+  print(device)
 
   # Setup the loss fn
   if meta.num_labels == 2:
@@ -176,6 +177,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   # Initialize model
   model = initialize_model(args, meta)
   model.to(device)
+  print(model.device)
 
   optimizer = torch.optim.Adam(
         model.parameters(),
@@ -219,13 +221,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   except KeyboardInterrupt:
     print("[Ctrl+C] Training stopped!")
 
-  # From now on, the MLM model is not kept in references
   results = {}
   results['loss'] = loss
 
   best_model.encoder.rnn.flatten_parameters()
 
-  best_model.encoder.permute = None
   best_model_pack = (best_model, criterion, optimizer)
   return results, best_model_pack
 
