@@ -218,6 +218,11 @@ class RNNSequenceEncoder(nn.Module):
     e = self.embedding(x)
     # e = [B,T,E]
 
+    if lengths is None:
+      lengths = torch.tensor(x.shape[1]).unsqueeze(0)
+      lengths = lengths.repeat(x.shape[0], 1)
+      print(lengths)
+
     if lengths is not None:
       # Lengths has to be on cpu for packing (?)
       lengths = lengths.cpu()
