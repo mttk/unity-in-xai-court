@@ -277,7 +277,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       total_time = time.time()
 
       sample_instance = meta.vocab.numericalize("this is a very nice movie".split())
-      interpret(model, sample_instance)
+      interpret_instance(model, sample_instance)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
