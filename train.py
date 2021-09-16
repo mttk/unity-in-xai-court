@@ -168,7 +168,7 @@ def interpret(model, data):
       (x, lengths), y = batch.text, batch.label
 
       baseline = torch.zeros_like(x)
-      attributions, delta = ig.attribute(data, baseline, target=0, return_convergence_delta=True)
+      attributions, delta = ig.attribute(x, baseline, target=0, return_convergence_delta=True)
       print('IG Attributions:', attributions)
       print('Convergence Delta:', delta)
       break
