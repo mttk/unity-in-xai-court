@@ -213,7 +213,7 @@ class RNNSequenceEncoder(nn.Module):
   def set_permute(self, permute):
     self.permute = permute
 
-  def forward(self, x, lengths=None, p_mask=None):
+  def forward(self, x, lengths=None, p_mask=None, use_mask=True):
     # x = [B,T]
     e = self.embedding(x)
     # e = [B,T,E]
@@ -236,10 +236,13 @@ class RNNSequenceEncoder(nn.Module):
       else:
         h = h[-1]
 
-    m = create_pad_mask_from_length(x, lengths)
-    if p_mask is not None:
-      #print(m.shape, p_mask.shape)
-      m = m & ~p_mask.transpose(0,1)
+    if use_mask:
+      m = create_pad_mask_from_length(x, lengths)
+      if p_mask is not None:
+        #print(m.shape, p_mask.shape)
+        m = m & ~p_mask.transpose(0,1)
+    else:
+      m = None
 
     # Permute attention indices
     perm = None
@@ -250,6 +253,7 @@ class RNNSequenceEncoder(nn.Module):
 
     #print(o.shape)
     print("h,o", h.shape, o.shape, m.shape)
+    # h = [B,H] ; o = [T,B,H], m = B,T
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m, permutation=(self.permute, perm))
 
     return_dict = {
