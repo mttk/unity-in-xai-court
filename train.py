@@ -111,6 +111,41 @@ def initialize_model(args, meta):
 
   return model
 
+def evaluate(model, data, args, meta):
+  model.eval()
+
+  accuracy, confusion_matrix = 0, np.zeros((meta.num_labels, meta.num_labels), dtype=int)
+  total_loss = 0.
+
+  with torch.inference_mode():
+    for batch_num, batch in enumerate(data):
+      #if batch_num > 100: break # checking beer imitation
+
+      t = time.time()
+      model.zero_grad()
+
+      # Unpack batch & cast to device
+      (x, lengths), y = batch.text, batch.label
+
+      y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
+
+      return_dict = model(x, lengths)
+      logits = return_dict['output']
+      attn = return_dict['attn'].squeeze()
+
+      # Bookkeeping and cast label to float
+      accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
+      if logits.shape[-1] == 1:
+        # binary cross entropy, cast labels to float
+        y = y.type(torch.float)
+
+      print("[Batch]: {}/{} in {:.5f} seconds".format(
+            batch_num, len(data), time.time() - t), end='\r', flush=True)
+
+  print("[Accuracy]: {}/{} : {:.3f}%".format(
+        accuracy, len(data) * data.batch_size, accuracy / len(data) / data.batch_size * 100))
+  print(confusion_matrix)
+  return total_loss / len(data)
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):
