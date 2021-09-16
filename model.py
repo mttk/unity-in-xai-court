@@ -214,7 +214,9 @@ class RNNSequenceEncoder(nn.Module):
     self.permute = permute
 
   def forward(self, x, lengths=None, p_mask=None):
+    # x = [B,T]
     e = self.embedding(x)
+    # e = [B,T,E]
 
     if lengths is not None:
       # Lengths has to be on cpu for packing (?)
@@ -247,6 +249,7 @@ class RNNSequenceEncoder(nn.Module):
       perm = replace_with_uniform(x, lengths).to(x.device)
 
     #print(o.shape)
+    print("h,o", h.shape, o.shape, m.shape)
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m, permutation=(self.permute, perm))
 
     return_dict = {
