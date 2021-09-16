@@ -166,7 +166,7 @@ def interpret_instance(model, numericalized_instance):
 
   with torch.inference_mode():
     numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-    lengths = len(numericalized_instance).unsqueeze(0)
+    lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
     return_dict = model(numericalized_instance, lengths)
     pred = return_dict['output'].item() # obtain prediction
     scaled_pred = nn.Sigmoid(pred) # scale to probability
