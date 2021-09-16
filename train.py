@@ -173,7 +173,7 @@ def interpret_instance(model, numericalized_instance):
     scaled_pred = nn.Sigmoid()(pred) # scale to probability
 
     # Reference indices are just a bunch of padding indices
-    reference_indices = [0] * len(numericalized_instancem)
+    reference_indices = [0] * len(numericalized_instance)
 
     baseline = torch.zeros_like(x)
     attributions, delta = lig.attribute(numericalized_instance, reference_indices,
