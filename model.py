@@ -174,6 +174,7 @@ class QlessAdditiveAttention(nn.Module):
     energy = self.h2e(h).transpose(1,2) #  [BxTx1?] -> [Bx1xT] 
 
     # Masked softmax
+    print(attn_mask.shape, energy.shape)
     if attn_mask is not None:
       energy.masked_fill_(~attn_mask.unsqueeze(1), -float('inf'))
     energy = F.softmax(energy, dim=2) # scale, normalize
