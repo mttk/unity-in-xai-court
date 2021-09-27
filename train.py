@@ -167,7 +167,7 @@ def interpret_instance(model, numericalized_instance):
   logits, return_dict = model(numericalized_instance, lengths, use_mask=False, pred_only=False)
   pred = logits.squeeze() # obtain prediction
   # print(pred)
-  scaled_pred = nn.Sigmoid()(pred) # scale to probability
+  scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
 
   # Reference indices are just a bunch of padding indices
   token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
