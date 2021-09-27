@@ -301,7 +301,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       sample_instance = sample_instance.to(device)
 
       # Try out various interpretability methods
-      lime_attributions = interpret_instance_lime(model, sample_instance)
+      # lime_attributions = interpret_instance_lime(model, sample_instance)
 
       # Layer integrated gradients
       attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
