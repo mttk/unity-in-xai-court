@@ -70,7 +70,7 @@ class JWAttentionClassifier(nn.Module):
     if config.freeze:
       self.embedding.weight.requires_grad = False
 
-    self.bi = config.bi
+    self.bidirectional = config.bi
     dimension_multiplier = 1 + sum([config.bi])
     attention_dim = dimension_multiplier * config.hidden_dim
 
