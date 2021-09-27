@@ -120,7 +120,7 @@ class JWAttentionClassifier(nn.Module):
     return pred
 
   def forward(self, inputs, lengths=None):
-    print(inputs.shape)
+    print(inputs.shape, lengths.shape)
     # inputs = [BxT]
     e = self.embedding(inputs)
     # e = [BxTxE]
