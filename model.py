@@ -226,27 +226,26 @@ class RNNSequenceEncoder(nn.Module):
     if lengths is None:
       lengths = torch.tensor(x.shape[1])
       lengths = lengths.repeat(x.shape[0])
-      print(lengths)
+      # print(lengths)
 
-    if lengths is not None:
-      # Lengths has to be on cpu for packing (?)
-      lengths = lengths.cpu()
-      h = torch.nn.utils.rnn.pack_padded_sequence(e, batch_first=True, lengths=lengths)
+    # Lengths has to be on cpu for packing (?)
+    lengths = lengths.cpu()
+    h = torch.nn.utils.rnn.pack_padded_sequence(e, batch_first=True, lengths=lengths)
 
-      outs, h = self.rnn(h)
+    outs, h = self.rnn(h)
 
-      outs, _ = torch.nn.utils.rnn.pad_packed_sequence(outs, batch_first=False)
-      o = outs
+    outs, _ = torch.nn.utils.rnn.pad_packed_sequence(outs, batch_first=False)
+    o = outs
 
-      if isinstance(h, tuple): # LSTM
-        h = h[1] # take the cell state
+    if isinstance(h, tuple): # LSTM
+      h = h[1] # take the cell state
 
-      if self.bidirectional: # need to concat the last 2 hidden layers
-        h = torch.cat([h[-1], h[-2]], dim=1)
-      else:
-        h = h[-1]
+    if self.bidirectional: # need to concat the last 2 hidden layers
+      h = torch.cat([h[-1], h[-2]], dim=1)
+    else:
+      h = h[-1]
 
-    if use_mask and lengths is not None:
+    if use_mask:
       m = create_pad_mask_from_length(x, lengths)
       if p_mask is not None:
         #print(m.shape, p_mask.shape)

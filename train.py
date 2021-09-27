@@ -29,6 +29,7 @@ from podium import BucketIterator
 from util import Config
 from datasets import *
 from model import *
+from interpret import visualize_attributions
 
 word_vector_files = {
   'glove' : os.path.expanduser('~/data/vectors/glove.840B.300d.txt')
@@ -165,7 +166,7 @@ def interpret_instance(model, numericalized_instance):
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
   logits, return_dict = model(numericalized_instance, lengths, use_mask=False, pred_only=False)
   pred = logits.squeeze() # obtain prediction
-  print(pred)
+  # print(pred)
   scaled_pred = nn.Sigmoid()(pred) # scale to probability
 
   # Reference indices are just a bunch of padding indices
@@ -177,7 +178,7 @@ def interpret_instance(model, numericalized_instance):
                                       n_steps=500, return_convergence_delta=True)
   print('IG Attributions:', attributions)
   print('Convergence Delta:', delta)
-
+  return attributions, scaled_pred, delta
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):
@@ -272,9 +273,13 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      sample_instance = torch.tensor(meta.vocab.numericalize("this is a very nice movie".split()))
+      sample_sentence = "this is a very nice movie".split()
+      sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
       sample_instance = sample_instance.to(device)
-      interpret_instance(model, sample_instance)
+      attributions, prediction, delta = interpret_instance(model, sample_instance)
+      visualize_attributions([
+          (attributions, prediction, round(prediction), attributions.sum(), sample_sentence, delta)
+        ])
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
