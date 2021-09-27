@@ -110,7 +110,7 @@ class JWAttentionClassifier(nn.Module):
 
 
     # Perform self-attention
-    attn_weights, hidden = self.attention(h, o, o, attn_mask=m, permutation=(self.permute, perm))
+    attn_weights, hidden = self.attention(h, o, o, attn_mask=m)
 
     # Perform decoding
     pred = self.decoder(hidden) # [Bx1]
