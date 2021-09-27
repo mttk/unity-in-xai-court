@@ -278,7 +278,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       sample_instance = sample_instance.to(device)
       attributions, prediction, delta = interpret_instance(model, sample_instance)
       visualize_attributions([
-          (attributions, prediction, round(prediction), attributions.sum(), sample_sentence, delta)
+          (attributions, prediction, round(prediction.item()), attributions.sum(), sample_sentence, delta)
         ])
 
       print(f"Epoch={epoch}, evaluating on validation set:")
