@@ -122,8 +122,7 @@ def update_stats(accuracy, confusion_matrix, logits, y):
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
-  encoder = RNNSequenceEncoder(args, meta)
-  model = LinearDecoder(encoder, args, meta)
+  model = JWAttentionClassifier(args, meta)
 
   return model
 

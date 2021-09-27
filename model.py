@@ -42,6 +42,112 @@ def create_pad_mask_from_length(tensor, lengths, idx=-1):
   mask = mask.to(tensor.device)
   return mask
 
+class _CaptumSubModel(torch.nn.Module):
+  def __init__(self, model):
+    super().__init__()
+    self.model = model
+
+  @overrides
+  def forward(self, word_embeddings, lengths):
+    return self.model.forward_inner(
+        embedded_tokens=word_embeddings,
+        lengths=lengths,
+    )
+
+
+class JWAttentionClassifier(nn.Module):
+  def __init__(self, config, meta):
+    super(JWAttentionClassifier, self).__init__()
+
+    self.hidden_dim = hidden_dim
+    self.embedding_dim = config.embedding_dim
+    self.embedding = nn.Embedding(meta.num_tokens, config.embedding_dim,
+                                  padding_idx=meta.padding_idx)
+
+    # TODO: add word vectors
+    #if config.vectors in word_vector_files:
+    #  self.embedding.weight.data.copy_(meta.vectors)
+
+    if config.freeze:
+      self.embedding.weight.requires_grad = False
+
+    self.bi = config.bi
+    dimension_multiplier = 1 + sum([config.bi])
+    attention_dim = dimension_multiplier * config.hidden_dim
+
+    self.rnn_type = config.rnn_type
+    assert config.rnn_type in RNNS, 'Use one of the following: {}'.format(str(RNNS))
+    rnn_cell = getattr(nn, config.rnn_type) # fetch constructor from torch.nn
+
+    self.num_layers = config.num_layers
+    self.rnn = rnn_cell(config.embedding_dim, config.hidden_dim, config.num_layers, 
+                        dropout=config.dropout, bidirectional=config.bi)
+    self.attention = QlessAdditiveAttention(query_dim=attention_dim,
+                                            key_dim=attention_dim,
+                                            value_dim=attention_dim)
+
+    self.decoder = nn.Linear(input_dim, meta.num_targets)
+
+  def forward_inner(self, embedded_tokens, lengths):
+    # For captum compatibility: obtain embeddings as inputs,
+    # return only the prediction tensor
+
+    h = torch.nn.utils.rnn.pack_padded_sequence(e, batch_first=True, lengths=lengths)
+    o, h = self.rnn(h)
+    o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first=False)
+
+    if isinstance(h, tuple): # LSTM
+      h = h[1] # take the cell state
+
+    if self.bidirectional: # need to concat the last 2 hidden layers
+      h = torch.cat([h[-1], h[-2]], dim=1)
+    else:
+      h = h[-1]
+
+    if use_mask:
+      m = create_pad_mask_from_length(x, lengths)
+      if p_mask is not None:
+        #print(m.shape, p_mask.shape)
+        m = m & ~p_mask.transpose(0,1)
+    else:
+      m = None
+
+    # Perform self-attention
+    attn_weights, hidden = self.attention(h, o, o, attn_mask=m, permutation=(self.permute, perm))
+
+    # Perform decoding
+    pred = self.decoder(hidden) # [Bx1]
+
+    return pred
+
+  def forward(self, inputs, lengths=None):
+    # inputs = [BxT]
+    e = self.embedding(inputs)
+    # e = [BxTxE]
+
+    if lengths is None:
+      # Assume fully packed batch
+      lengths = torch.tensor(x.shape[1])
+      lengths = lengths.repeat(x.shape[0])
+
+    lengths = lengths.cpu()
+
+    pred = self.forward_inner(e, lengths)
+
+    return_dict = {
+        'attn' : attn_weights,
+        'lstm_output': o,
+        'embeddings': e
+    }
+
+    return pred, return_dict
+
+  def captum_sub_model(self):
+    return _CaptumSubModel(self)
+
+  #def instances_to_captum_inputs(self, labeled_instances):
+    # Should map instances to word embedded inputs; TODO
+
 
 class QlessAdditiveAttention(nn.Module):
   def __init__(self, query_dim, key_dim, value_dim):
@@ -160,26 +266,6 @@ class LinearDecoder(nn.Module):
     else:
       return return_dict['output'], return_dict
 
-class LayeredRNN(nn.Module):
-  def __init__(self, config, meta):
-    super(LayeredRNN, self).__init__()
-    rnn_cell = getattr(nn, config.rnn_type)
-
-    self.rnns = nn.ModuleList([rnn_cell(config.embedding_dim, config.hidden_dim, config.num_layers, 
-                        dropout=config.dropout, bidirectional=config.bi)])
-
-  def forward(self, h):
-    hiddens = []
-    for rnn in self.rnns:
-      h, state = rnn(h)
-      o, _ = torch.nn.utils.rnn.pad_packed_sequence(h, batch_first=False)
-      hiddens.append(o)
-    # Returns a list of hiddens and final hidden state
-    return hiddens, state
-
-  def flatten_parameters(self):
-    for rnn in self.rnns:
-      rnn.flatten_parameters()
 
 
 class RNNSequenceEncoder(nn.Module):
