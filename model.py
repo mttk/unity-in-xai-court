@@ -85,7 +85,7 @@ class JWAttentionClassifier(nn.Module):
                                             key_dim=attention_dim,
                                             value_dim=attention_dim)
 
-    self.decoder = nn.Linear(input_dim, meta.num_targets)
+    self.decoder = nn.Linear(attention_dim, meta.num_targets)
 
   def forward_inner(self, embedded_tokens, lengths):
     # For captum compatibility: obtain embeddings as inputs,
