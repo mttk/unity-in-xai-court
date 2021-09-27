@@ -58,7 +58,7 @@ class JWAttentionClassifier(nn.Module):
   def __init__(self, config, meta):
     super(JWAttentionClassifier, self).__init__()
 
-    self.hidden_dim = hidden_dim
+    self.hidden_dim = config.hidden_dim
     self.embedding_dim = config.embedding_dim
     self.embedding = nn.Embedding(meta.num_tokens, config.embedding_dim,
                                   padding_idx=meta.padding_idx)
