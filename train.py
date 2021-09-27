@@ -163,6 +163,7 @@ def evaluate(model, data, args, meta):
   return result_dict
 
 def interpret_instance_lime(model, numericalized_instance):
+  device = next(iter(model.parameters())).device
   linear_model = SkLearnRidge()
   lime = Lime(model)
 
@@ -170,7 +171,7 @@ def interpret_instance_lime(model, numericalized_instance):
   # Feature mask enumerates (word) features in each instance 
   bsz, seq_len = 1, len(numericalized_instance)
   feature_mask = torch.tensor(list(range(bsz*seq_len))).reshape([bsz, seq_len, 1])
-  feature_mask = feature_mask.to(model.device)
+  feature_mask = feature_mask.to(device)
   feature_mask = feature_mask.expand(-1, -1, model.encoder.embedding_dim)
 
   attributions = lime.attribute(numericalized_instance,
@@ -182,6 +183,7 @@ def interpret_instance_lime(model, numericalized_instance):
   return attributions
 
 def interpret_instance_lig(model, numericalized_instance):
+
   lig = LayerIntegratedGradients(model, model.encoder.embedding) # LIG uses embedding data
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
