@@ -103,7 +103,7 @@ class JWAttentionClassifier(nn.Module):
     else:
       h = h[-1]
 
-    m = create_pad_mask_from_length(x, lengths)
+    m = create_pad_mask_from_length(embedded_tokens, lengths)
     if p_mask is not None:
       #print(m.shape, p_mask.shape)
       m = m & ~p_mask.transpose(0,1)
