@@ -110,6 +110,7 @@ class JWAttentionClassifier(nn.Module):
 
 
     # Perform self-attention
+    print(h.shape, o.shape, m.shape)
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m)
 
     # Perform decoding
