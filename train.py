@@ -143,7 +143,7 @@ def evaluate(model, data, args, meta):
 
       y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
-      logits, return_dict = model(x, lengths, pred_only=False)
+      logits, return_dict = model(x, lengths)
       attn = return_dict['attn'].squeeze()
 
       # Bookkeeping and cast label to float
@@ -183,11 +183,11 @@ def interpret_instance_lime(model, numericalized_instance):
 
 def interpret_instance_lig(model, numericalized_instance):
 
-  lig = LayerIntegratedGradients(model, model.encoder.embedding) # LIG uses embedding data
+  lig = LayerIntegratedGradients(model.captum_sub_model(), model.encoder.embedding) # LIG uses embedding data
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-  logits, return_dict = model(numericalized_instance, lengths, use_mask=False, pred_only=False)
+  logits, return_dict = model(numericalized_instance, lengths, use_mask=False)
   pred = logits.squeeze() # obtain prediction
   # print(pred)
   scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
@@ -218,7 +218,7 @@ def train(model, data, optimizer, criterion, args, meta):
 
     y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
-    logits, return_dict = model(x, lengths, pred_only=False)
+    logits, return_dict = model(x, lengths)
 
     # Bookkeeping and cast label to float
     accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
