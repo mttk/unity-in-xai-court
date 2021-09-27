@@ -103,13 +103,11 @@ class JWAttentionClassifier(nn.Module):
     else:
       h = h[-1]
 
-    if use_mask:
-      m = create_pad_mask_from_length(x, lengths)
-      if p_mask is not None:
-        #print(m.shape, p_mask.shape)
-        m = m & ~p_mask.transpose(0,1)
-    else:
-      m = None
+    m = create_pad_mask_from_length(x, lengths)
+    if p_mask is not None:
+      #print(m.shape, p_mask.shape)
+      m = m & ~p_mask.transpose(0,1)
+
 
     # Perform self-attention
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m, permutation=(self.permute, perm))
