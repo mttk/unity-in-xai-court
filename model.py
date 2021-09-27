@@ -93,7 +93,7 @@ class JWAttentionClassifier(nn.Module):
 
     h = torch.nn.utils.rnn.pack_padded_sequence(embedded_tokens, batch_first=True, lengths=lengths)
     o, h = self.rnn(h)
-    o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first=False)
+    o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first=True)
 
     if isinstance(h, tuple): # LSTM
       h = h[1] # take the cell state
