@@ -14,6 +14,7 @@ import torch.nn.functional as F
 
 from captum.attr import (
     GradientShap,
+    Lime,
     DeepLift,
     DeepLiftShap,
     IntegratedGradients,
@@ -23,6 +24,8 @@ from captum.attr import (
     NeuronConductance,
     NoiseTunnel,
 )
+
+from captum._utils.models.linear_model import SkLearnRidge
 
 from podium import BucketIterator
 
@@ -159,7 +162,26 @@ def evaluate(model, data, args, meta):
   result_dict = {}
   return result_dict
 
-def interpret_instance(model, numericalized_instance):
+def interpret_instance_lime(model, numericalized_instance):
+  linear_model = SkLearnRidge()
+  lime = Lime(model)
+
+  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
+  # Feature mask enumerates (word) features in each instance 
+  bsz, seq_len = 1, len(numericalized_instance)
+  feature_mask = torch.tensor(list(range(bsz*seq_len))).reshape([bsz, seq_len, 1])
+  feature_mask = feature_mask.to(model.device)
+  feature_mask = feature_mask.expand(-1, -1, model.encoder.embedding_dim)
+
+  attributions = lime.attribute(numericalized_instance,
+                                target=1, n_samples=1000,
+                                feature_mask=feature_mask) # n samples arg taken from court of xai
+
+  print(attributions.shape)
+  print('Lime Attributions:', attributions)
+  return attributions
+
+def interpret_instance_lig(model, numericalized_instance):
   lig = LayerIntegratedGradients(model, model.encoder.embedding) # LIG uses embedding data
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
@@ -276,8 +298,13 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       sample_sentence = "this is a very nice movie".split()
       sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
       sample_instance = sample_instance.to(device)
-      attributions, prediction, delta = interpret_instance(model, sample_instance)
-      print(attributions.shape)
+
+      # Try out various interpretability methods
+      lime_attributions = interpret_instance_lime(model, sample_instance)
+
+      # Layer integrated gradients
+      attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
+      print(attributions.shape) # B, T, E
       attributions = attributions.sum(dim=2).squeeze(0)
       attributions = attributions / torch.norm(attributions)
       attributions = attributions.cpu().detach().numpy()
