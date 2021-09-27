@@ -277,9 +277,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
       sample_instance = sample_instance.to(device)
       attributions, prediction, delta = interpret_instance(model, sample_instance)
+      print(attributions.shape)
       attributions = attributions.sum(dim=2).squeeze(0)
       attributions = attributions / torch.norm(attributions)
       attributions = attributions.cpu().detach().numpy()
+
       visualize_attributions([
           (attributions,
             prediction,

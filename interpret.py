@@ -9,6 +9,7 @@ def visualize_attributions(visualization_records):
     cast_records = []
     for record in visualization_records:
         # Each record is assumed to be a tuple
+        print(record)
         cast_records.append(visualization.VisualizationDataRecord(
             *record
             ))
