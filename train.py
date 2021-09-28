@@ -183,7 +183,7 @@ def interpret_instance_lime(model, numericalized_instance):
 
 def interpret_instance_lig(model, numericalized_instance):
 
-  lig = LayerIntegratedGradients(model.captum_sub_model(), model.encoder.embedding) # LIG uses embedding data
+  lig = LayerIntegratedGradients(model.captum_sub_model(), model.embedding) # LIG uses embedding data
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
