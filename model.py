@@ -135,8 +135,6 @@ class JWAttentionClassifier(nn.Module):
     pred = self.forward_inner(e, lengths)
 
     return_dict = {
-        'attn' : attn_weights,
-        'lstm_output': o,
         'embeddings': e
     }
 
