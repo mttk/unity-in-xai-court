@@ -111,7 +111,7 @@ class JWAttentionClassifier(nn.Module):
 
 
     # Perform self-attention
-    print(h.shape, o.shape) # m = 32, 300
+    # print(h.shape, o.shape) # m = 32, 300
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m)
 
     # Perform decoding
@@ -120,7 +120,7 @@ class JWAttentionClassifier(nn.Module):
     return pred
 
   def forward(self, inputs, lengths=None):
-    print(inputs.shape, lengths.shape)
+    # print(inputs.shape, lengths.shape)
     # inputs = [BxT]
     e = self.embedding(inputs)
     # e = [BxTxE]
