@@ -197,7 +197,8 @@ def interpret_instance_lig(model, numericalized_instance):
   reference_indices = token_reference.generate_reference(len(numericalized_instance), 
                                                           device=next(iter(model.parameters())).device).unsqueeze(0)
 
-  attributions, delta = lig.attribute(numericalized_instance, reference_indices,
+  model_input = (numericalized_instance, lengths)
+  attributions, delta = lig.attribute(model_input, reference_indices,
                                       n_steps=500, return_convergence_delta=True)
   print('IG Attributions:', attributions)
   print('Convergence Delta:', delta)
