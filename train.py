@@ -171,7 +171,7 @@ def interpret_instance_lime(model, numericalized_instance):
   bsz, seq_len = 1, len(numericalized_instance)
   feature_mask = torch.tensor(list(range(bsz*seq_len))).reshape([bsz, seq_len, 1])
   feature_mask = feature_mask.to(device)
-  feature_mask = feature_mask.expand(-1, -1, model.encoder.embedding_dim)
+  feature_mask = feature_mask.expand(-1, -1, model.embedding_dim)
 
   attributions = lime.attribute(numericalized_instance,
                                 target=1, n_samples=1000,
