@@ -187,7 +187,7 @@ def interpret_instance_lig(model, numericalized_instance):
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-  logits, return_dict = model(numericalized_instance, lengths, use_mask=False)
+  logits, return_dict = model(numericalized_instance, lengths)
   pred = logits.squeeze() # obtain prediction
   # print(pred)
   scaled_pred = nn.Sigmoid()(pred).item() # scale to probability

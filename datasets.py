@@ -49,6 +49,8 @@ if __name__ == '__main__':
   splits, vocab = load_imdb('datasets/IMDB/train.csv','datasets/IMDB/dev.csv','datasets/IMDB/test.csv')
   print(vocab)
   train, valid, test = splits
+  print(len(train), len(valid), len(test))
+
   print(train)
   print(train[0])
 
