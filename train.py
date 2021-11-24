@@ -197,8 +197,7 @@ def interpret_instance_deeplift(model, numericalized_instance):
   reference_indices = token_reference.generate_reference(len(numericalized_instance), 
                                                           device=next(iter(model.parameters())).device).unsqueeze(0)
 
-  outs = dl.attribute(numericalized_instance, reference_indices,
-                                      n_steps=500, return_convergence_delta=True)
+  outs = dl.attribute(numericalized_instance, reference_indices, return_convergence_delta=True)
   print(outs)
   return outs, scaled_pred
 
