@@ -193,13 +193,13 @@ def interpret_instance_deeplift(model, numericalized_instance):
   scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
 
   # Reference indices are just a bunch of padding indices
-  token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
-  reference_indices = token_reference.generate_reference(len(numericalized_instance), 
+  # token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
+  # reference_indices = token_reference.generate_reference(len(numericalized_instance), 
                                                           device=next(iter(model.parameters())).device).unsqueeze(0)
 
-  outs = dl.attribute(numericalized_instance, reference_indices, return_convergence_delta=True)
+  outs, delta = dl.attribute(numericalized_instance, return_convergence_delta=True)
   print(outs)
-  return outs, scaled_pred
+  return outs, scaled_pred, delta
 
 
 def interpret_instance_lig(model, numericalized_instance):
@@ -328,7 +328,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
 
       # Deeplift
-      attributions, prediction = interpret_instance_deeplift(model, sample_instance)
+      attributions, prediction, delta = interpret_instance_deeplift(model, sample_instance)
 
       print(attributions.shape) # B, T, E
       attributions = attributions.sum(dim=2).squeeze(0)
