@@ -158,8 +158,8 @@ def evaluate(model, data, args, meta):
   print("[Accuracy]: {}/{} : {:.3f}%".format(
         accuracy, len(data) * data.batch_size, accuracy / len(data) / data.batch_size * 100))
   print(confusion_matrix)
-  result_dict = {}
-  return result_dict
+
+  return return_dict
 
 def interpret_instance_lime(model, numericalized_instance):
   device = next(iter(model.parameters())).device
