@@ -144,7 +144,7 @@ def evaluate(model, data, args, meta):
       y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
       logits, return_dict = model(x, lengths)
-      attn = return_dict['attn'].squeeze()
+      # attn = return_dict['attn'].squeeze()
 
       # Bookkeeping and cast label to float
       accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
@@ -158,8 +158,8 @@ def evaluate(model, data, args, meta):
   print("[Accuracy]: {}/{} : {:.3f}%".format(
         accuracy, len(data) * data.batch_size, accuracy / len(data) / data.batch_size * 100))
   print(confusion_matrix)
-
-  return return_dict
+  result_dict = {}
+  return result_dict
 
 def interpret_instance_lime(model, numericalized_instance):
   device = next(iter(model.parameters())).device
