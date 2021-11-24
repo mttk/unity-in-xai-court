@@ -47,12 +47,8 @@ class _CaptumSubModel(torch.nn.Module):
     super().__init__()
     self.model = model
 
-  def forward(self, word_embeddings, lengths=None):
-    if lengths is None and word_embeddings.shape[0] == 1:
-      # Assume it's a single instance
-      lengths = torch.tensor(word_embeddings.shape[1], dtype=torch.int).unsqueeze(0)
-      print(lengths.shape, word_embeddings.shape, lengths)
-
+  def forward(self, word_indices, lengths=None):
+    word_embeddings = self.model.embedding(word_indices)
     return self.model.forward_inner(
         embedded_tokens=word_embeddings,
         lengths=lengths,
@@ -96,6 +92,13 @@ class JWAttentionClassifier(nn.Module):
     # For captum compatibility: obtain embeddings as inputs,
     # return only the prediction tensor
 
+    if lengths is None:
+      # Assume fully packed batch, [B,T,E]
+      lengths = torch.tensor(embedded_tokens.shape[1])
+      lengths = lengths.repeat(embedded_tokens.shape[0])
+
+    lengths = lengths.cpu()
+
     h = torch.nn.utils.rnn.pack_padded_sequence(embedded_tokens, batch_first=True, lengths=lengths)
     print("FI", h, embedded_tokens.shape)
     o, h = self.rnn(h)
@@ -130,13 +133,6 @@ class JWAttentionClassifier(nn.Module):
     # inputs = [BxT]
     e = self.embedding(inputs)
     # e = [BxTxE]
-
-    if lengths is None:
-      # Assume fully packed batch
-      lengths = torch.tensor(x.shape[1])
-      lengths = lengths.repeat(x.shape[0])
-
-    lengths = lengths.cpu()
 
     pred = self.forward_inner(e, lengths)
 
