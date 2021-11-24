@@ -181,6 +181,28 @@ def interpret_instance_lime(model, numericalized_instance):
   print('Lime Attributions:', attributions)
   return attributions
 
+def interpret_instance_deeplift(model, numericalized_instance):
+
+  dl = DeepLift(model.captum_sub_model())
+
+  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
+  lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
+  logits, return_dict = model(numericalized_instance, lengths)
+  pred = logits.squeeze() # obtain prediction
+  # print(pred)
+  scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
+
+  # Reference indices are just a bunch of padding indices
+  token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
+  reference_indices = token_reference.generate_reference(len(numericalized_instance), 
+                                                          device=next(iter(model.parameters())).device).unsqueeze(0)
+
+  outs = dl.attribute(numericalized_instance, reference_indices,
+                                      n_steps=500, return_convergence_delta=True)
+  print(outs)
+  return outs, scaled_pred
+
+
 def interpret_instance_lig(model, numericalized_instance):
 
   lig = LayerIntegratedGradients(model.captum_sub_model(), model.embedding) # LIG uses embedding data
@@ -197,8 +219,7 @@ def interpret_instance_lig(model, numericalized_instance):
   reference_indices = token_reference.generate_reference(len(numericalized_instance), 
                                                           device=next(iter(model.parameters())).device).unsqueeze(0)
 
-  model_input = numericalized_instance
-  attributions, delta = lig.attribute(model_input, reference_indices,
+  attributions, delta = lig.attribute(numericalized_instance, reference_indices,
                                       n_steps=500, return_convergence_delta=True)
   print('IG Attributions:', attributions)
   print('Convergence Delta:', delta)
@@ -305,7 +326,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       # attributions = interpret_instance_lime(model, sample_instance)
 
       # Layer integrated gradients
-      attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
+      # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
+
+      # Deeplift
+      attributions, prediction = interpret_instance_deeplift(model, sample_instance)
+
       print(attributions.shape) # B, T, E
       attributions = attributions.sum(dim=2).squeeze(0)
       attributions = attributions / torch.norm(attributions)
