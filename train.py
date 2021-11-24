@@ -302,10 +302,10 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       sample_instance = sample_instance.to(device)
 
       # Try out various interpretability methods
-      attributions = interpret_instance_lime(model, sample_instance)
+      # attributions = interpret_instance_lime(model, sample_instance)
 
       # Layer integrated gradients
-      # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
+      attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
       print(attributions.shape) # B, T, E
       attributions = attributions.sum(dim=2).squeeze(0)
       attributions = attributions / torch.norm(attributions)
