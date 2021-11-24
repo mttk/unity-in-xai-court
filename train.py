@@ -183,7 +183,8 @@ def interpret_instance_lime(model, numericalized_instance):
 
 def interpret_instance_deeplift(model, numericalized_instance):
 
-  dl = DeepLift(model.captum_sub_model())
+  _model = model.captum_sub_model()
+  dl = DeepLift(_model)
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
@@ -197,14 +198,17 @@ def interpret_instance_deeplift(model, numericalized_instance):
   # reference_indices = token_reference.generate_reference(len(numericalized_instance), 
   #                                                        device=next(iter(model.parameters())).device).unsqueeze(0)
 
-  outs, delta = dl.attribute(numericalized_instance, return_convergence_delta=True)
+  embedded_instance = model.embedding(numericalized_instance)
+  # Pass embeddings to input
+
+  outs, delta = dl.attribute(embedded_instance, return_convergence_delta=True)
   print(outs)
   return outs, scaled_pred, delta
 
 
 def interpret_instance_lig(model, numericalized_instance):
-
-  lig = LayerIntegratedGradients(model.captum_sub_model(), model.embedding) # LIG uses embedding data
+  _model = model.captum_sub_model()
+  lig = LayerIntegratedGradients(_model, model.embedding) # LIG uses embedding data
 
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
@@ -217,8 +221,9 @@ def interpret_instance_lig(model, numericalized_instance):
   token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
   reference_indices = token_reference.generate_reference(len(numericalized_instance), 
                                                           device=next(iter(model.parameters())).device).unsqueeze(0)
+  embedded_instance = model.embedding(numericalized_instance)
 
-  attributions, delta = lig.attribute(numericalized_instance, reference_indices,
+  attributions, delta = lig.attribute(embedded_instance, reference_indices,
                                       n_steps=500, return_convergence_delta=True)
   print('IG Attributions:', attributions)
   print('Convergence Delta:', delta)

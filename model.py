@@ -47,8 +47,8 @@ class _CaptumSubModel(torch.nn.Module):
     super().__init__()
     self.model = model
 
-  def forward(self, word_indices, lengths=None):
-    word_embeddings = self.model.embedding(word_indices)
+  def forward(self, word_embeddings, lengths=None):
+    # word_embeddings = self.model.embedding(word_indices)
     return self.model.forward_inner(
         embedded_tokens=word_embeddings,
         lengths=lengths,
