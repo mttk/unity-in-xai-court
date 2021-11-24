@@ -47,7 +47,11 @@ class _CaptumSubModel(torch.nn.Module):
     super().__init__()
     self.model = model
 
-  def forward(self, word_embeddings, lengths):
+  def forward(self, word_embeddings, lengths=None):
+    if lengths is None and word_embeddings.shape[0] == 1:
+      # Assume it's a single instance
+      lengths = torch.tensor(word_embeddings.shape[1]).unsqueeze(0)
+
     return self.model.forward_inner(
         embedded_tokens=word_embeddings,
         lengths=lengths,
