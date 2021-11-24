@@ -195,7 +195,7 @@ def interpret_instance_deeplift(model, numericalized_instance):
   # Reference indices are just a bunch of padding indices
   # token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
   # reference_indices = token_reference.generate_reference(len(numericalized_instance), 
-                                                          device=next(iter(model.parameters())).device).unsqueeze(0)
+  #                                                        device=next(iter(model.parameters())).device).unsqueeze(0)
 
   outs, delta = dl.attribute(numericalized_instance, return_convergence_delta=True)
   print(outs)
