@@ -97,7 +97,7 @@ class JWAttentionClassifier(nn.Module):
     # return only the prediction tensor
 
     h = torch.nn.utils.rnn.pack_padded_sequence(embedded_tokens, batch_first=True, lengths=lengths)
-    print("FI", h.shape, embedded_tokens.shape)
+    print("FI", h, embedded_tokens.shape)
     o, h = self.rnn(h)
     o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first=False)
 
