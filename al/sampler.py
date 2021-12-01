@@ -6,11 +6,10 @@ from ..datasets import make_iterable
 
 
 class Sampler(ABC):
-    def __init__(self, dataset, batch_size, device, meta):
+    def __init__(self, dataset, batch_size, device):
         self.dataset = dataset
         self.batch_size = batch_size
         self.device = device
-        self.meta = meta
 
     @abstractmethod
     def query(self, query_size, *args, **kwargs):
