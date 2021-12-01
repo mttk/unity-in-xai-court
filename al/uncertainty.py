@@ -8,7 +8,7 @@ class LeastConfidentSampler(Sampler):
     name = "least_confident"
 
     def query(self, query_size, unlab_inds, model, **kwargs):
-        probs = self._forward_iter(unlab_inds, model.forward).cpu().numpy()
+        probs = self._forward_iter(unlab_inds, model.predict_probs).cpu().numpy()
         max_probs = np.max(probs, axis=1)
 
         # Retrieve `query_size` instances with highest posterior probabilities.
@@ -20,7 +20,7 @@ class MarginSampler(Sampler):
     name = "margin"
 
     def query(self, query_size, unlab_inds, model, **kwargs):
-        probs = self._forward_iter(unlab_inds, model.forward).cpu().numpy()
+        probs = self._forward_iter(unlab_inds, model.predict_probs).cpu().numpy()
 
         sort_probs = np.sort(probs, 1)[:, -2:]
         min_margin = sort_probs[:, 1] - sort_probs[:, 0]
@@ -34,7 +34,7 @@ class EntropySampler(Sampler):
     name = "entropy"
 
     def query(self, query_size, unlabeled_inds, model, **kwargs):
-        probs = self._forward_iter(unlabeled_inds, model.forward).cpu().numpy()
+        probs = self._forward_iter(unlabeled_inds, model.predict_probs).cpu().numpy()
 
         # Clip for numerical stability.
         probs = np.clip(probs, a_min=1e-6, a_max=None)

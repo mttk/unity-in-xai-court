@@ -6,10 +6,11 @@ from ..datasets import make_iterable
 
 
 class Sampler(ABC):
-    def __init__(self, dataset, batch_size, device):
+    def __init__(self, dataset, batch_size, device, meta):
         self.dataset = dataset
         self.batch_size = batch_size
         self.device = device
+        self.meta = meta
 
     @abstractmethod
     def query(self, query_size, *args, **kwargs):
@@ -21,8 +22,15 @@ class Sampler(ABC):
         )
         out_list = []
         for batch in iter:
-            x, *_ = batch.text
-            out, *_ = forward_fn(x)
+            ret_val = batch.text
+            if type(ret_val) is tuple:
+                # Unpack inputs and lengths.
+                x, lengths = ret_val
+            else:
+                x = ret_val
+                # Set lengths to None to match the method's signature.
+                lengths = None
+            out = forward_fn(x, lengths=lengths)
             out_list.append(out)
 
         res = torch.stack(out_list)
@@ -32,5 +40,5 @@ class Sampler(ABC):
 class RandomSampler(Sampler):
     name = "random"
 
-    def query(self, al_batch_size, unlabeled_inds, **kwargs):
-        return np.random.choice(unlabeled_inds, size=al_batch_size, replace=False)
+    def query(self, query_size, unlab_inds, **kwargs):
+        return np.random.choice(unlab_inds, size=query_size, replace=False)
