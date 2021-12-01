@@ -5,50 +5,16 @@ import numpy as np
 import math
 import os
 
-RNNS = ['LSTM', 'GRU', 'RNN']
-
-
-def generate_permutation(batch, lengths):
-  # batch contains attention weights post scaling
-  # [BxT]
-  batch_size, max_len = batch.shape
-  # repeat arange for batch_size times
-  perm_idx = np.tile(np.arange(max_len), (batch_size, 1))
-
-  for batch_index, length in enumerate(lengths):
-    perm = np.random.permutation(length.item())
-    #print(perm)
-    perm_idx[batch_index, :length] = perm
-
-  #permuted_batch = batch.gather(1, perm_idx)
-  return torch.tensor(perm_idx)
-
-def replace_with_uniform(tensor, lengths):
-  # Assumed: [BxT] shape for tensor
-  uniform = create_pad_mask_from_length(tensor, lengths).type(torch.float)
-  for idx, l in enumerate(lengths):
-    uniform[idx] /= l
-  return uniform
-
-def masked_softmax(attn_odds, masks) :
-  attn_odds.masked_fill_(~masks, -float('inf'))
-  attn = F.softmax(attn_odds, dim=-1)
-  return attn
-
-def create_pad_mask_from_length(tensor, lengths, idx=-1):
-  # Creates a mask where `True` is on the non-padded locations
-  # and `False` on the padded locations
-  mask = torch.arange(tensor.size(idx))[None, :].to(lengths.device) < lengths[:, None]
-  mask = mask.to(tensor.device)
-  return mask
-
 class _CaptumSubModel(torch.nn.Module):
+  """Wrapper around model instance
+
+    Required for returning a single output value
+  """
   def __init__(self, model):
     super().__init__()
     self.model = model
 
   def forward(self, word_embeddings, lengths=None):
-    # word_embeddings = self.model.embedding(word_indices)
     return self.model.forward_inner(
         embedded_tokens=word_embeddings,
         lengths=lengths,
@@ -75,16 +41,12 @@ class JWAttentionClassifier(nn.Module):
     dimension_multiplier = 1 + sum([config.bi])
     attention_dim = dimension_multiplier * config.hidden_dim
 
-    self.rnn_type = config.rnn_type
-    assert config.rnn_type in RNNS, 'Use one of the following: {}'.format(str(RNNS))
-    rnn_cell = getattr(nn, config.rnn_type) # fetch constructor from torch.nn
-
     self.num_layers = config.num_layers
-    self.rnn = rnn_cell(config.embedding_dim, config.hidden_dim, config.num_layers, 
+    self.rnn = nn.LSTM(config.embedding_dim, config.hidden_dim, config.num_layers, 
                         dropout=config.dropout, bidirectional=config.bi)
-    self.attention = QlessAdditiveAttention(query_dim=attention_dim,
-                                            key_dim=attention_dim,
-                                            value_dim=attention_dim)
+    self.attention = AdditiveAttention(query_dim=attention_dim,
+                                       key_dim=attention_dim,
+                                       value_dim=attention_dim)
 
     self.decoder = nn.Linear(attention_dim, meta.num_targets)
 
@@ -129,13 +91,13 @@ class JWAttentionClassifier(nn.Module):
     return pred
 
   def forward(self, inputs, lengths=None):
-    # print(inputs.shape, lengths.shape)
     # inputs = [BxT]
-    e = self.embedding(inputs)
+    e = self.embedding(inputs) # [BxTxE]
     # e = [BxTxE]
 
     pred = self.forward_inner(e, lengths)
 
+    # For additional return arguments
     return_dict = {
         'embeddings': e
     }
@@ -149,9 +111,11 @@ class JWAttentionClassifier(nn.Module):
     # Should map instances to word embedded inputs; TODO
 
 
-class QlessAdditiveAttention(nn.Module):
+class AdditiveAttention(nn.Module):
+  """Tanh attention; query is a learned parameter (same as JW paper)
+  """
   def __init__(self, query_dim, key_dim, value_dim):
-    super(QlessAdditiveAttention, self).__init__()
+    super(AdditiveAttention, self).__init__()
     assert (key_dim) % 2 == 0, "Key dim should be divisible by 2"
     self.hidden_dim = (key_dim) // 2
     self.k2h = nn.Linear(key_dim, self.hidden_dim)
@@ -176,62 +140,10 @@ class QlessAdditiveAttention(nn.Module):
     energy = self.h2e(h).transpose(1,2) #  [BxTx1?] -> [Bx1xT] 
 
     # Masked softmax
-    # print(attn_mask.shape, energy.shape)
     if attn_mask is not None:
       energy.masked_fill_(~attn_mask.unsqueeze(1), -float('inf'))
     energy = F.softmax(energy, dim=2) # scale, normalize
 
-
-    if permutation is not None:
-      key, permutation = permutation
-      if key == 'uniform':
-        energy = permutation.unsqueeze(1)
-      elif key == 'permute':
-        energy = energy.squeeze().gather(1, permutation).unsqueeze(1)
-
     values = values.transpose(0,1) # [TxBxV] -> [BxTxV]
     linear_combination = torch.bmm(energy, values).squeeze(1) #[Bx1xT]x[BxTxV] -> [BxV]
     return energy, linear_combination
-
-class QlessAttention(nn.Module):
-  def __init__(self, query_dim, key_dim, value_dim):
-    super(QlessAttention, self).__init__()
-    self.scale = 1. #/ math.sqrt(key_dim)
-    self.k2h = nn.Linear(key_dim, key_dim, bias=False)
-    self.learned_q = nn.Linear(key_dim, 1, bias=False)
-    torch.nn.init.normal_(self.learned_q.weight)
-
-  def forward(self, query, keys, values, attn_mask=None, permutation=None):
-    # Query = [BxQ]
-    # Keys = [TxBxK]
-    # Values = [TxBxV]
-    # Outputs = a:[TxB], lin_comb:[BxV]
-
-    # Here we assume q_dim == k_dim (dot product attention)
-    lengths = attn_mask.sum(-1).to(torch.float) # for scaling
-
-    keys = keys.transpose(0,1) # [TxBxK] -> [BxTxK]
-
-    keys = F.normalize(keys, p=2, dim=-1)
-
-
-    energy = self.learned_q(keys).mul_(self.scale).transpose(1,2) # [BxTxK -> Bx1xT]
-
-    if attn_mask is not None:
-      energy.masked_fill_(~attn_mask.unsqueeze(1), -float('inf'))
-    energy = F.softmax(energy, dim=2) # scale, normalize
-
-    if permutation is not None:
-      key, permutation = permutation
-      if key == 'uniform':
-        energy = permutation.unsqueeze(1)
-      elif key == 'permute':
-        energy = energy.squeeze().gather(1, permutation).unsqueeze(1)
-
-    values = values.transpose(0,1) # [TxBxV] -> [BxTxV]
-    linear_combination = torch.bmm(energy, values).squeeze(1) #[Bx1xT]x[BxTxV] -> [BxV]
-    return energy, linear_combination
-
-
-ATTNS = {'nqdot': QlessAttention,
-        'nqadd' : QlessAdditiveAttention}

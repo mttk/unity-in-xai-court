@@ -190,7 +190,6 @@ def interpret_instance_deeplift(model, numericalized_instance):
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
   logits, return_dict = model(numericalized_instance, lengths)
   pred = logits.squeeze() # obtain prediction
-  # print(pred)
   scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
 
   # Reference indices are just a bunch of padding indices
