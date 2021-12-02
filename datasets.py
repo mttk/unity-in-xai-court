@@ -71,3 +71,4 @@ if __name__ == '__main__':
   text, length = batch.text
   print(vocab.reverse_numericalize(text[0]))
   print(length[0])
+  print(vocab.get_padding_index())

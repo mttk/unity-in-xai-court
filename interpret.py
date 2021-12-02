@@ -22,19 +22,26 @@ from captum._utils.models.linear_model import SkLearnRidge
 
 class Interpreter:
 
-    def interpret_instance(self, instance):
+    def interpret_instance(self, instance, **kwargs):
         # Determine and set additional kwargs for the attribute method
 
-        kwargs = 
+        # 1. Prepare arguments
+        args = dict(
+                **kwargs,
+                **self.attribute_kwargs()
+            )
+
         with torch.no_grad():
+            # 2. Embed instance
             embedded_instance = self.model.embed(instance)
+
             attributions, delta = self.attribute(embedded_instance)
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
         """
         >> Adapted from court-of-xai codebase
         Args:
-            captum_inputs (Tuple): result of CaptumCompatible.instances_to_captum_inputs.
+            captum_inputs (Tuple): result of model.instances_to_captum_inputs.
             mask_features_by_token (bool, optional): For Captum methods that require a feature mask,
                                                      define each token as a feature if True. If False,
                                                      define each scalar in the embedding dimension as a
@@ -52,9 +59,9 @@ class Interpreter:
         if isinstance(self.predictor._model, DistilBertForSequenceClassification):
             embedding = self.predictor._model.embeddings 
         else:
-            embedding = util.find_embedding_layer(self.predictor._model)
+            embedding = self.model.embedding # Need to assure the embedding is always fetchable
     
-        pad_idx = vocab.get_token_index(vocab._padding_token)
+        pad_idx = vocab.get_padding_index()
         pad_idx = torch.LongTensor([[pad_idx]]).to(inputs[0].device)
         pad_idxs = tuple(pad_idx.expand(tensor.size()[:2]) for tensor in inputs)
         baselines = tuple(embedding(idx) for idx in pad_idxs)

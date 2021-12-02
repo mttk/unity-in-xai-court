@@ -295,7 +295,7 @@ def main():
   meta = Config()
   meta.num_labels = 2
   meta.num_tokens = len(vocab)
-  meta.padding_idx = 0
+  meta.padding_idx = vocab.get_padding_index()
   meta.vocab = vocab
 
   experiment(args, meta, train, val, test)
