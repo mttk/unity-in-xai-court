@@ -24,21 +24,21 @@ class _CaptumSubModel(torch.nn.Module):
 class JWAttentionClassifier(nn.Module):
   def __init__(self, config, meta):
     super(JWAttentionClassifier, self).__init__()
-
+    # Store vocab for interpretability methods
+    self.vocab = meta.vocab
     self.num_targets = meta.num_targets
-
     self.hidden_dim = config.hidden_dim
+    # Initialize embeddings
     self.embedding_dim = config.embedding_dim
     self.embedding = nn.Embedding(meta.num_tokens, config.embedding_dim,
                                   padding_idx=meta.padding_idx)
-
-    # TODO: add word vectors
-    #if config.vectors in word_vector_files:
-    #  self.embedding.weight.data.copy_(meta.vectors)
+    if meta.vectors is not None:
+      self.embedding.weight.data.copy_(meta.vectors)
 
     if config.freeze:
       self.embedding.weight.requires_grad = False
 
+    # Initialize network
     self.bidirectional = config.bi
     dimension_multiplier = 1 + sum([config.bi])
     attention_dim = dimension_multiplier * config.hidden_dim

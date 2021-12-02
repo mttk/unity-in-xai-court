@@ -12,27 +12,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from captum.attr import (
-    GradientShap,
-    Lime,
-    DeepLift,
-    DeepLiftShap,
-    IntegratedGradients,
-    LayerIntegratedGradients,
-    TokenReferenceBase,
-    LayerConductance,
-    NeuronConductance,
-    NoiseTunnel,
-)
-
-from captum._utils.models.linear_model import SkLearnRidge
-
 from podium import BucketIterator
 
 from util import Config
 from datasets import *
 from model import *
-from interpret import visualize_attributions
+from interpret import *
 
 word_vector_files = {
   'glove' : os.path.expanduser('~/data/vectors/glove.840B.300d.txt')
@@ -99,7 +84,6 @@ def make_parser():
   return parser.parse_args()
 
 
-
 def update_stats(accuracy, confusion_matrix, logits, y):
   if logits.shape[-1] == 1:
     # BCE, need to check ge 0 (or gt 0?)
@@ -122,6 +106,7 @@ def update_stats(accuracy, confusion_matrix, logits, y):
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
+  meta.embeddings = load_embeddings(meta.vocab, name='glove')
   model = JWAttentionClassifier(args, meta)
 
   return model
@@ -160,74 +145,6 @@ def evaluate(model, data, args, meta):
   print(confusion_matrix)
   result_dict = {'loss': 0.}
   return result_dict
-
-def interpret_instance_lime(model, numericalized_instance):
-  device = next(iter(model.parameters())).device
-  linear_model = SkLearnRidge()
-  lime = Lime(model)
-
-  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-  # Feature mask enumerates (word) features in each instance 
-  bsz, seq_len = 1, len(numericalized_instance)
-  feature_mask = torch.tensor(list(range(bsz*seq_len))).reshape([bsz, seq_len, 1])
-  feature_mask = feature_mask.to(device)
-  feature_mask = feature_mask.expand(-1, -1, model.embedding_dim)
-
-  attributions = lime.attribute(numericalized_instance,
-                                target=1, n_samples=1000,
-                                feature_mask=feature_mask) # n samples arg taken from court of xai
-
-  print(attributions.shape)
-  print('Lime Attributions:', attributions)
-  return attributions
-
-def interpret_instance_deeplift(model, numericalized_instance):
-
-  _model = model.captum_sub_model()
-  dl = DeepLift(_model)
-
-  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-  lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-  logits, return_dict = model(numericalized_instance, lengths)
-  pred = logits.squeeze() # obtain prediction
-  scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
-
-  # Reference indices are just a bunch of padding indices
-  # token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
-  # reference_indices = token_reference.generate_reference(len(numericalized_instance), 
-  #                                                        device=next(iter(model.parameters())).device).unsqueeze(0)
-  with torch.no_grad():
-    embedded_instance = model.embedding(numericalized_instance)
-    # Pass embeddings to input
-
-    outs, delta = dl.attribute(embedded_instance, return_convergence_delta=True)
-  print(outs)
-  return outs, scaled_pred, delta
-
-
-def interpret_instance_lig(model, numericalized_instance):
-  _model = model.captum_sub_model()
-  lig = LayerIntegratedGradients(_model, model.embedding) # LIG uses embedding data
-
-  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-  lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-  logits, return_dict = model(numericalized_instance, lengths)
-  pred = logits.squeeze() # obtain prediction
-  # print(pred)
-  scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
-
-  # Reference indices are just a bunch of padding indices
-  token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
-  reference_indices = token_reference.generate_reference(len(numericalized_instance), 
-                                                          device=next(iter(model.parameters())).device).unsqueeze(0)
-  with torch.no_grad():
-    embedded_instance = model.embedding(numericalized_instance)
-
-    attributions, delta = lig.attribute(embedded_instance, reference_indices,
-                                        n_steps=500, return_convergence_delta=True)
-  print('IG Attributions:', attributions)
-  print('Convergence Delta:', delta)
-  return attributions, scaled_pred, delta
 
 # For regression & classification
 def train(model, data, optimizer, criterion, args, meta):

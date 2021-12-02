@@ -5,10 +5,14 @@ from podium import Vocab, Field, LabelField, BucketIterator
 from podium.datasets import TabularDataset
 from podium.vectorizers import GloVe
 
-def get_vectors(vocab):
-  glove = GloVe()
-  embeddings = glove.load_vocab(vocab)
-  return embeddings
+def load_embeddings(vocab, name='glove'):
+  if name == 'glove':
+    glove = GloVe()
+    embeddings = glove.load_vocab(vocab)
+    return embeddings
+  else:
+    raise ValueError(f"Wrong embedding key provided {name}")
+    # return None
 
 def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
     """
