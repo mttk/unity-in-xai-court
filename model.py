@@ -26,6 +26,7 @@ class JWAttentionClassifier(nn.Module):
     super(JWAttentionClassifier, self).__init__()
     # Store vocab for interpretability methods
     self.vocab = meta.vocab
+    self.num_targets = meta.num_targets
     self.hidden_dim = config.hidden_dim
     # Initialize embeddings
     self.embedding_dim = config.embedding_dim
@@ -105,6 +106,23 @@ class JWAttentionClassifier(nn.Module):
 
     return pred, return_dict
 
+  def predict_probs(self, inputs, lengths=None):
+    with torch.inference_mode():
+      logits, _ = self(inputs, lengths)
+      if self.num_targets == 1:
+        # Binary classification
+        y_pred = F.sigmoid(logits)
+        y_pred = torch.cat([1.0 - y_pred, y_pred], dim=1)
+      else:
+        # Multiclass classification
+        y_pred = F.softmax(logits, dim=1)
+      return y_pred
+
+  def get_embeddings(self, inputs, **kwargs):
+    with torch.inference_mode():
+      e = self.embedding(inputs)
+      return e 
+  
   def captum_sub_model(self):
     return _CaptumSubModel(self)
 

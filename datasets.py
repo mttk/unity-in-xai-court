@@ -14,7 +14,7 @@ def load_embeddings(vocab, name='glove'):
     raise ValueError(f"Wrong embedding key provided {name}")
     # return None
 
-def make_iterable(dataset, device, batch_size=32, train=False):
+def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
     """
     Construct a DataLoader from a podium Dataset
     """
@@ -26,11 +26,16 @@ def make_iterable(dataset, device, batch_size=32, train=False):
     def cast_to_device(data):
       return torch.tensor(data, device=device)
 
+    # Selects examples at given indices to support subset iteration.
+    if indices:
+      dataset = dataset[indices]
+
     iterator = BucketIterator(dataset, batch_size=batch_size,
                               bucket_sort_key=instance_length, shuffle=train,
                               matrix_class=cast_to_device)
 
     return iterator
+
 
 def load_imdb(train_path='datasets/IMDB/train.csv',
               valid_path='datasets/IMDB/dev.csv',
