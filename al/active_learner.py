@@ -3,7 +3,7 @@ import torch
 import time
 
 from datasets import make_iterable
-dataset, device, batch_size=32, train=False, indices=None
+
 
 class ActiveLearner:
     # TODO: AL loop abstraction
@@ -27,10 +27,10 @@ class ActiveLearner:
         while not stopping_criterion:
             # TODO
             # 1. train model with labeled data: fine-tune vs. re-train
-            self.train_model(model)
+            result_dict_train = self._train_model(model)
             # ...
             # 2. evaluate model (test set)
-            self.evaluate_model(model)
+            result_dict_test = self._evaluate_model(model)
             # ...
             # 3. Retrieve active sample.
             unlab_inds, *_ = np.where(lab_mask)
@@ -40,16 +40,21 @@ class ActiveLearner:
             lab_mask[selected_inds] = True
             # 4. calculate intepretability metrics
             # ...
-            pass
 
     def _train_model(self, model, lab_mask):
         model.train()
-        data = make_iterable(
-            self.train_set, self.device, batch_size=self.batch_size, indices=lab_mask
-        )
 
-        accuracy, confusion_matrix = 0, np.zeros((self.meta.num_labels, self.meta.num_labels), dtype=int)
-        total_loss = 0.
+        data = make_iterable(
+            self.train_set,
+            self.device,
+            batch_size=self.batch_size,
+            train=True,
+            indices=lab_mask,
+        )
+        accuracy, confusion_matrix = 0, np.zeros(
+            (self.meta.num_labels, self.meta.num_labels), dtype=int
+        )
+        total_loss = 0.0
 
         for batch_num, batch in enumerate(data):
 
@@ -57,12 +62,14 @@ class ActiveLearner:
             # Unpack batch & cast to device
             (x, lengths), y = batch.text, batch.label
 
-            y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
+            y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
 
-            logits, return_dict = model(x, lengths)
+            logits, _ = model(x, lengths)
 
             # Bookkeeping and cast label to float
-            accuracy, confusion_matrix = ActiveLearner.update_stats(accuracy, confusion_matrix, logits, y)
+            accuracy, confusion_matrix = ActiveLearner.update_stats(
+                accuracy, confusion_matrix, logits, y
+            )
             if logits.shape[-1] == 1:
                 # binary cross entropy, cast labels to float
                 y = y.type(torch.float)
@@ -74,17 +81,71 @@ class ActiveLearner:
             torch.nn.utils.clip_grad_norm_(model.parameters(), self.args.clip)
             self.optimizer.step()
 
-            print("[Batch]: {}/{} in {:.5f} seconds".format(
-                batch_num, len(data), time.time() - t), end='\r', flush=True)
-        result_dict = {
-            'loss' : total_loss / len(data) / data.batch_size
-        }
+            print(
+                "[Batch]: {}/{} in {:.5f} seconds".format(
+                    batch_num, len(data), time.time() - t
+                ),
+                end="\r",
+                flush=True,
+            )
+        result_dict = {"loss": total_loss / len(data) / data.batch_size}
         return result_dict
 
-    def _evaluate_model(self, model):
-        make_iterable()
+    def _evaluate_model(self, model, lab_mask):
         model.eval()
-        pass
+
+        data = make_iterable(
+            self.train_set,
+            self.device,
+            batch_size=self.batch_size,
+            train=True,
+            indices=lab_mask,
+        )
+        accuracy, confusion_matrix = 0, np.zeros(
+            (self.meta.num_labels, self.meta.num_labels), dtype=int
+        )
+
+        with torch.inference_mode():
+            for batch_num, batch in enumerate(data):
+                # if batch_num > 100: break # checking beer imitation
+
+                t = time.time()
+                model.zero_grad()
+
+                # Unpack batch & cast to device
+                (x, lengths), y = batch.text, batch.label
+
+                y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
+
+                logits, _ = model(x, lengths)
+                # attn = return_dict['attn'].squeeze()
+
+                # Bookkeeping and cast label to float
+                accuracy, confusion_matrix = ActiveLearner.update_stats(
+                    accuracy, confusion_matrix, logits, y
+                )
+                if logits.shape[-1] == 1:
+                    # binary cross entropy, cast labels to float
+                    y = y.type(torch.float)
+
+                print(
+                    "[Batch]: {}/{} in {:.5f} seconds".format(
+                        batch_num, len(data), time.time() - t
+                    ),
+                    end="\r",
+                    flush=True,
+                )
+
+        print(
+            "[Accuracy]: {}/{} : {:.3f}%".format(
+                accuracy,
+                len(data) * data.batch_size,
+                accuracy / len(data) / data.batch_size * 100,
+            )
+        )
+        print(confusion_matrix)
+        result_dict = {"loss": 0.0}
+        return result_dict
 
     @staticmethod
     def update_stats(accuracy, confusion_matrix, logits, y):
@@ -101,6 +162,6 @@ class ActiveLearner:
             confusion_matrix[y, max_ind] += 1
         else:
             for j, i in zip(max_ind, y):
-                confusion_matrix[int(i),int(j)] += 1
+                confusion_matrix[int(i), int(j)] += 1
 
         return accuracy + correct, confusion_matrix

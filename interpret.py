@@ -30,7 +30,6 @@ class Interpreter:
                 **kwargs,
                 **self.attribute_kwargs()
             )
-
         with torch.no_grad():
             # 2. Embed instance
             embedded_instance = self.model.embed(instance)
