@@ -106,7 +106,7 @@ def update_stats(accuracy, confusion_matrix, logits, y):
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
-  meta.embeddings = load_embeddings(meta.vocab, name='glove')
+  meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name='glove'))
   model = JWAttentionClassifier(args, meta)
 
   return model

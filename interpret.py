@@ -25,7 +25,7 @@ class Interpreter:
     def interpret_instance(self, instance):
         # Determine and set additional kwargs for the attribute method
 
-        kwargs = 
+        kwargs = {}
         with torch.no_grad():
             embedded_instance = self.model.embed(instance)
             attributions, delta = self.attribute(embedded_instance)

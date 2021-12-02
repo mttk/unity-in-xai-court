@@ -32,8 +32,8 @@ class JWAttentionClassifier(nn.Module):
     self.embedding_dim = config.embedding_dim
     self.embedding = nn.Embedding(meta.num_tokens, config.embedding_dim,
                                   padding_idx=meta.padding_idx)
-    if meta.vectors is not None:
-      self.embedding.weight.data.copy_(meta.vectors)
+    if meta.embeddings is not None:
+      self.embedding.weight.data.copy_(meta.embeddings)
 
     if config.freeze:
       self.embedding.weight.requires_grad = False

@@ -27,10 +27,10 @@ class ActiveLearner:
         while not stopping_criterion:
             # TODO
             # 1. train model with labeled data: fine-tune vs. re-train
-            self.train_model(model)
+            result_dict_train = self._train_model(model)
             # ...
             # 2. evaluate model (test set)
-            self.evaluate_model(model)
+            result_dict_test = self._evaluate_model(model)
             # ...
             # 3. Retrieve active sample.
             unlab_inds, *_ = np.where(lab_mask)
@@ -40,7 +40,6 @@ class ActiveLearner:
             lab_mask[selected_inds] = True
             # 4. calculate intepretability metrics
             # ...
-            pass
 
     def _train_model(self, model, lab_mask):
         model.train()
