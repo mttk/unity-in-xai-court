@@ -126,9 +126,9 @@ class JWAttentionClassifier(nn.Module):
   def captum_sub_model(self):
     return _CaptumSubModel(self)
 
-  #def instances_to_captum_inputs(self, labeled_instances):
+  def instances_to_captum_inputs(self, labeled_instances):
     # Should map instances to word embedded inputs; TODO
-
+    pass
 
 class AdditiveAttention(nn.Module):
   """Tanh attention; query is a learned parameter (same as JW paper)

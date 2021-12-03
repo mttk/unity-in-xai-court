@@ -21,14 +21,23 @@ from captum.attr import (
 from captum._utils.models.linear_model import SkLearnRidge
 
 class Interpreter:
+    # >> Adapted from court-of-xai codebase
+    def __init__(self, name, model, mask_features_by_token=False, attribute_args=None):
+        self.attribute_args = attribute_args
+        self.mask_features_by_token = mask_features_by_token
+        self.model = model
+        self.name = name
 
     def interpret_instance(self, instance, **kwargs):
         # Determine and set additional kwargs for the attribute method
 
+        captum_inputs = self.model.instances_to_captum_inputs()
+
         # 1. Prepare arguments
         args = dict(
-                **kwargs,
-                **self.attribute_kwargs()
+                **kwargs, # Call-based extra arguments
+                **self.attribute_kwargs(mask_features_by_token=self.mask_features_by_token), # General extra arguments
+                self.attribute_args # To be added in subclass constructor
             )
         with torch.no_grad():
             # 2. Embed instance
@@ -38,7 +47,6 @@ class Interpreter:
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
         """
-        >> Adapted from court-of-xai codebase
         Args:
             captum_inputs (Tuple): result of model.instances_to_captum_inputs.
             mask_features_by_token (bool, optional): For Captum methods that require a feature mask,
@@ -87,6 +95,18 @@ class Interpreter:
 
         return attr_kwargs
 
+# DeepLift
+class DeepLiftInterpreter(Interpreter, DeepLift):
+    def __init__(self, model):
+        Interpreter.__init__(self, 'DeepLift', model)
+        self.model = model.captum_sub_model()
+        DeepLift.__init__(self, self.model)
+
+class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
+    def __init__(self, model):
+        Interpreter.__init__(self, 'DeepLiftShap', model)
+        self.model = model.captum_sub_model()
+        DeepLift.__init__(self, self.model)
 
 
 def visualize_attributions(visualization_records):
@@ -125,6 +145,7 @@ def interpret_instance_deeplift(model, numericalized_instance):
   _model = model.captum_sub_model()
   dl = DeepLift(_model)
 
+  # Should be done in model.prepare_inputs...
   numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
   lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
   logits, return_dict = model(numericalized_instance, lengths)
