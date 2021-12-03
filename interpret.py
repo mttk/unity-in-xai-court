@@ -43,7 +43,8 @@ class Interpreter:
             # 2. Embed instance
             embedded_instance = self.model.embed(instance)
 
-            attributions, delta = self.attribute(embedded_instance)
+            attributions = self.attribute(embedded_instance)
+        return attributions
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
         """
@@ -102,6 +103,7 @@ class DeepLiftInterpreter(Interpreter, DeepLift):
         self.model = model.captum_sub_model()
         DeepLift.__init__(self, self.model)
 
+# DeepLiftShap
 class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
     def __init__(self, model):
         Interpreter.__init__(self, 'DeepLiftShap', model)
