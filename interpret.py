@@ -42,7 +42,7 @@ class Interpreter:
                 **self.attribute_args # To be added in subclass constructor
             )
         with torch.inference_mode():
-
+            print(captum_inputs[0].shape)
             attributions = self.attribute(captum_inputs[0]) # Embeddings are at index 0
         return attributions
 
