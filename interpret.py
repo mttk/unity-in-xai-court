@@ -100,7 +100,7 @@ class Interpreter:
 class DeepLiftInterpreter(Interpreter, DeepLift):
     def __init__(self, model):
         Interpreter.__init__(self, 'DeepLift', model)
-        self.model = model.captum_sub_model()
+        self.submodel = model.captum_sub_model()
         DeepLift.__init__(self, self.submodel)
 
 # DeepLiftShap
