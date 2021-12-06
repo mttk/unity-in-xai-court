@@ -70,7 +70,7 @@ class Interpreter:
     
         # Will only work on single-sentence input data
         pad_idx = vocab.get_padding_index()
-        pad_idxs = torch.full(inputs.shape, fill_value=pad_idx, device=inputs.device)
+        pad_idxs = torch.full(inputs.shape[:2], fill_value=pad_idx, device=inputs.device)
         baselines = embedding(pad_idxs)
         print(baselines.shape, inputs.shape)
 
