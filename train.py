@@ -252,7 +252,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
       sample_instance = sample_instance.to(device)
 
-      for interpreter in interpreters:
+      for interpreter in interpreters.values():
         attributions = interpreter.interpret_instance(sample_instance)
         print(interpreter.name, attributions)
 
