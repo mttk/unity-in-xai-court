@@ -164,7 +164,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
     # Should map instances to word embedded inputs; TODO
     # inputs: [BxT]
 
-    e = self.get_embeddings(inputs)
+    e = self.embeddin(inputs)
     pad_mask = create_pad_mask_from_length(inputs, lengths)
 
     return e, None, (pad_mask)
