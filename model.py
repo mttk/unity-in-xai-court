@@ -163,7 +163,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
   def instances_to_captum_inputs(self, inputs, lengths, labels=None):
     # Should map instances to word embedded inputs; TODO
     # inputs: [BxT]
-
+    print("CI", inputs.shape, lengths.shape)
     with torch.no_grad():
       e = self.embedding(inputs)
     pad_mask = create_pad_mask_from_length(inputs, lengths)
