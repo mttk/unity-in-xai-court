@@ -101,14 +101,14 @@ class DeepLiftInterpreter(Interpreter, DeepLift):
     def __init__(self, model):
         Interpreter.__init__(self, 'DeepLift', model)
         self.model = model.captum_sub_model()
-        DeepLift.__init__(self, self.model)
+        DeepLift.__init__(self, self.submodel)
 
 # DeepLiftShap
 class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
     def __init__(self, model):
         Interpreter.__init__(self, 'DeepLiftShap', model)
-        self.model = model.captum_sub_model()
-        DeepLift.__init__(self, self.model)
+        self.submodel = model.captum_sub_model()
+        DeepLift.__init__(self, self.submodel)
 
 
 def visualize_attributions(visualization_records):
