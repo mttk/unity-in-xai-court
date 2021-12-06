@@ -36,7 +36,7 @@ class Interpreter:
         # 1. Prepare arguments
         args = dict(
                 **kwargs, # Call-based extra arguments
-                **self.attribute_kwargs(mask_features_by_token=self.mask_features_by_token), # General extra arguments
+                **self.attribute_kwargs(captum_inputs, mask_features_by_token=self.mask_features_by_token), # General extra arguments
                 **self.attribute_args # To be added in subclass constructor
             )
         with torch.inference_mode():
