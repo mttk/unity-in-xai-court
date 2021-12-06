@@ -64,8 +64,8 @@ class Interpreter:
         vocab = self.predictor.vocab
 
         # Manually check for distilbert.
-        if isinstance(self.predictor._model, DistilBertForSequenceClassification):
-            embedding = self.predictor._model.embeddings 
+        if isinstance(self.predictor, DistilBertForSequenceClassification):
+            embedding = self.predictor.embeddings 
         else:
             embedding = self.predictor.embedding # Need to assure the embedding is always fetchable
     
