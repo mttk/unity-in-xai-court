@@ -224,6 +224,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
     optimizer.load_state_dict(o)
     criterion.load_state_dict(c)
 
+  interpreters = {
+    'deeplift': DeepLiftInterpreter(model),
+    'deeplift-shap': DeepLiftShapInterpreter(model)
+  }
+
   loss = 0.
   # The actual training loop
   try:
@@ -239,38 +244,17 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
+      print(f"Epoch={epoch}, evaluating on validation set:")
+      result_dict = evaluate(model, val_iter, args, meta)
+      loss = result_dict['loss']
+
       sample_sentence = "this is a very nice movie".split()
       sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
       sample_instance = sample_instance.to(device)
 
-      # Try out various interpretability methods
-      # attributions = interpret_instance_lime(model, sample_instance)
-
-      # Layer integrated gradients
-      # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
-
-      # Deeplift
-      attributions, prediction, delta = interpret_instance_deeplift(model, sample_instance)
-
-      print(attributions.shape) # B, T, E
-      attributions = attributions.sum(dim=2).squeeze(0)
-      attributions = attributions / torch.norm(attributions)
-      attributions = attributions.cpu().detach().numpy()
-
-      visualize_attributions([
-          (attributions,
-            prediction,
-            str(round(prediction)),
-            str(round(prediction)),
-            "Pos",
-            attributions.sum(),
-            sample_sentence,
-            delta)
-        ])
-
-      print(f"Epoch={epoch}, evaluating on validation set:")
-      result_dict = evaluate(model, val_iter, args, meta)
-      loss = result_dict['loss']
+      for interpreter in interpreters:
+        attributions = interpreter.interpret_instance(sample_instance)
+        print(interpreter.name, attributions)
 
       if best_valid_loss is None or loss < best_valid_loss:
         best_valid_loss = loss

@@ -190,3 +190,34 @@ def interpret_instance_lig(model, numericalized_instance):
   print('IG Attributions:', attributions)
   print('Convergence Delta:', delta)
   return attributions, scaled_pred, delta
+
+
+def legacy_interpret(model, meta):
+      sample_sentence = "this is a very nice movie".split()
+      sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
+      sample_instance = sample_instance.to(device)
+
+      # Try out various interpretability methods
+      # attributions = interpret_instance_lime(model, sample_instance)
+
+      # Layer integrated gradients
+      # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
+
+      # Deeplift
+      attributions, prediction, delta = interpret_instance_deeplift(model, sample_instance)
+
+      print(attributions.shape) # B, T, E
+      attributions = attributions.sum(dim=2).squeeze(0)
+      attributions = attributions / torch.norm(attributions)
+      attributions = attributions.cpu().detach().numpy()
+
+      visualize_attributions([
+          (attributions,
+            prediction,
+            str(round(prediction)),
+            str(round(prediction)),
+            "Pos",
+            attributions.sum(),
+            sample_sentence,
+            delta)
+        ])
