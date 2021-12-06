@@ -25,7 +25,7 @@ class CaptumCompatible():
         """
         raise NotImplementedError()
 
-    def instances_to_captum_inputs(self, *inputs):
+    def instances_to_captum_inputs(self, inputs, lengths, labels):
         """
         Converts a set of Instances to a Tensor suitable to pass to the submodule
         obtained through captum_sub_model.
@@ -160,7 +160,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
     return _CaptumSubModel(self)
 
   @overrides
-  def instances_to_captum_inputs(self, inputs, lengths):
+  def instances_to_captum_inputs(self, inputs, lengths, labels=None):
     # Should map instances to word embedded inputs; TODO
     # inputs: [BxT]
 
