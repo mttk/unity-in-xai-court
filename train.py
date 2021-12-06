@@ -244,10 +244,6 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      print(f"Epoch={epoch}, evaluating on validation set:")
-      result_dict = evaluate(model, val_iter, args, meta)
-      loss = result_dict['loss']
-
       sample_sentence = "this is a very nice movie".split()
       sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)
       sample_instance = sample_instance.to(device)
@@ -256,6 +252,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       for interpreter in interpreters.values():
         attributions = interpreter.interpret_instance(sample_instance, lengths)
         print(interpreter.name, attributions)
+
+
+      print(f"Epoch={epoch}, evaluating on validation set:")
+      result_dict = evaluate(model, val_iter, args, meta)
+      loss = result_dict['loss']
 
       if best_valid_loss is None or loss < best_valid_loss:
         best_valid_loss = loss

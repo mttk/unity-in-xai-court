@@ -42,7 +42,7 @@ class Interpreter:
                 **self.attribute_args # To be added in subclass constructor
             )
         #with torch.no_grad():
-        attributions = self.attribute(self.predictor.embedding(instance)) # Embeddings are at index 0
+        attributions = self.attribute(captum_inputs[0]) # Embeddings are at index 0
         return attributions
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
