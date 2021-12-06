@@ -5,6 +5,35 @@ import numpy as np
 import math
 import os
 
+from util import create_pad_mask_from_length
+
+# Taken from court-of-xai
+# Captum expects the input to the model you are interpreting to be one or more
+# Tensor objects, but AllenNLP Model classes often take Dict[...] objects as
+# their input. To fix this we require the Models that are to be used with Captum
+# to implement a set of methods that make it possible to use Captum.
+class CaptumCompatible():
+
+    def captum_sub_model(self):
+        """
+        Returns a PyTorch nn.Module instance with a forward that performs
+        the same steps as the Model would normally, but starting from word embeddings.
+        As such it accepts FloatTensors as input, which is required for Captum.
+        """
+        raise NotImplementedError()
+
+    def instances_to_captum_inputs(self, *inputs):
+        """
+        Converts a set of Instances to a Tensor suitable to pass to the submodule
+        obtained through captum_sub_model.
+        Returns
+          Tuple with (inputs, target, additional_forward_args)
+          Both inputs and target tensors should have the Batch dimension first.
+          The inputs Tensors should have the Embedding dimension last.
+        """
+        raise NotImplementedError()
+
+
 class _CaptumSubModel(torch.nn.Module):
   """Wrapper around model instance
 
@@ -21,7 +50,7 @@ class _CaptumSubModel(torch.nn.Module):
     )
 
 
-class JWAttentionClassifier(nn.Module):
+class JWAttentionClassifier(nn.Module, CaptumCompatible):
   def __init__(self, config, meta):
     super(JWAttentionClassifier, self).__init__()
     # Store vocab for interpretability methods
@@ -123,12 +152,19 @@ class JWAttentionClassifier(nn.Module):
       e = self.embedding(inputs)
       return e 
   
+  @override
   def captum_sub_model(self):
     return _CaptumSubModel(self)
 
-  def instances_to_captum_inputs(self, labeled_instances):
+  @override
+  def instances_to_captum_inputs(self, inputs, lengths):
     # Should map instances to word embedded inputs; TODO
-    pass
+    # inputs: [BxT]
+
+    e = self.get_embeddings(inputs)
+    pad_mask = create_pad_mask_from_length(inputs, lengths)
+
+    return e, None, (pad_mask)
 
 class AdditiveAttention(nn.Module):
   """Tanh attention; query is a learned parameter (same as JW paper)

@@ -39,7 +39,7 @@ class Interpreter:
                 **self.attribute_kwargs(mask_features_by_token=self.mask_features_by_token), # General extra arguments
                 self.attribute_args # To be added in subclass constructor
             )
-        with torch.no_grad():
+        with torch.inference_mode():
             # 2. Embed instance
             embedded_instance = self.model.embed(instance)
 

@@ -15,6 +15,14 @@ class Config(dict):
         self[key] = value
 
 
+def create_pad_mask_from_length(tensor, lengths):
+  # Creates a mask where `True` is on the non-padded locations
+  # and `False` on the padded locations
+  mask = torch.arange(tensor.size(-1))[None, :].to(lengths.device) < lengths[:, None]
+  mask = mask.to(tensor.device)
+  return mask
+
+
 def generate_permutation(batch, lengths):
   # batch contains attention weights post scaling
   # [BxT]
