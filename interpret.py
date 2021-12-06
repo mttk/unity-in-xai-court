@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from model import JWAttentionClassifier
+
 from captum.attr import visualization
 
 from captum.attr import (
@@ -64,10 +66,10 @@ class Interpreter:
         vocab = self.predictor.vocab
 
         # Manually check for distilbert.
-        if isinstance(self.predictor, DistilBertForSequenceClassification):
-            embedding = self.predictor.embeddings 
-        else:
-            embedding = self.predictor.embedding # Need to assure the embedding is always fetchable
+        if isinstance(self.predictor, JWAttentionClassifier):
+            embedding = self.predictor.embedding
+        else: # DistillBert?
+            embedding = self.predictor.embeddings # Need to assure the embedding is always fetchable
     
         pad_idx = vocab.get_padding_index()
         pad_idx = torch.LongTensor([[pad_idx]]).to(inputs[0].device)
