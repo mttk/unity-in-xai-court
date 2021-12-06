@@ -249,7 +249,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       loss = result_dict['loss']
 
       sample_sentence = "this is a very nice movie".split()
-      sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
+      sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)
       sample_instance = sample_instance.to(device)
       lengths = torch.tensor([len(sample_instance)]).to(device)
 
