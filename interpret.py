@@ -41,8 +41,8 @@ class Interpreter:
                 **self.attribute_kwargs(captum_inputs, mask_features_by_token=self.mask_features_by_token), # General extra arguments
                 **self.attribute_args # To be added in subclass constructor
             )
-        #with torch.no_grad():
-        attributions = self.attribute(captum_inputs[0]) # Embeddings are at index 0
+        with torch.no_grad():
+            attributions = self.attribute(captum_inputs[0]) # Embeddings are at index 0
         return attributions
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):

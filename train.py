@@ -226,7 +226,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
   interpreters = {
     'deeplift': DeepLiftInterpreter(model),
-    #'deeplift-shap': DeepLiftShapInterpreter(model)
+    'deeplift-shap': DeepLiftShapInterpreter(model)
   }
 
   loss = 0.
