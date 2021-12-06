@@ -92,9 +92,9 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
       # Assume fully packed batch, [B,T,E]
       lengths = torch.tensor(embedded_tokens.shape[1])
       lengths = lengths.repeat(embedded_tokens.shape[0])
+      print("S", lengths.shape, lengths)
 
     lengths = lengths.cpu()
-    print("S", lengths.shape)
 
     h = torch.nn.utils.rnn.pack_padded_sequence(embedded_tokens, batch_first=True, lengths=lengths)
     # print("FI", h, embedded_tokens.shape)
