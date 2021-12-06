@@ -152,11 +152,11 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
       e = self.embedding(inputs)
       return e 
   
-  @override
+  @overrides
   def captum_sub_model(self):
     return _CaptumSubModel(self)
 
-  @override
+  @overrides
   def instances_to_captum_inputs(self, inputs, lengths):
     # Should map instances to word embedded inputs; TODO
     # inputs: [BxT]
