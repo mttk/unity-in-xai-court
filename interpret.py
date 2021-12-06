@@ -25,13 +25,13 @@ class Interpreter:
     def __init__(self, name, model, mask_features_by_token=False, attribute_args=None):
         self.attribute_args = attribute_args
         self.mask_features_by_token = mask_features_by_token
-        self.model = model
+        self.base_model = model
         self.name = name
 
     def interpret_instance(self, instance, **kwargs):
         # Determine and set additional kwargs for the attribute method
 
-        captum_inputs = self.model.instances_to_captum_inputs()
+        captum_inputs = self.base_model.instances_to_captum_inputs()
 
         # 1. Prepare arguments
         args = dict(
@@ -41,7 +41,7 @@ class Interpreter:
             )
         with torch.inference_mode():
             # 2. Embed instance
-            embedded_instance = self.model.embed(instance)
+            embedded_instance = self.base_model.embed(instance)
 
             attributions = self.attribute(embedded_instance)
         return attributions
@@ -61,13 +61,13 @@ class Interpreter:
                   relevant Captum Attribution sub-class.
         """
         inputs, target, additional = captum_inputs
-        vocab = self.model.vocab
+        vocab = self.base_model.vocab
 
         # Manually check for distilbert.
         if isinstance(self.predictor._model, DistilBertForSequenceClassification):
             embedding = self.predictor._model.embeddings 
         else:
-            embedding = self.model.embedding # Need to assure the embedding is always fetchable
+            embedding = self.base_model.embedding # Need to assure the embedding is always fetchable
     
         pad_idx = vocab.get_padding_index()
         pad_idx = torch.LongTensor([[pad_idx]]).to(inputs[0].device)
