@@ -78,6 +78,7 @@ class Interpreter:
             'inputs' : inputs,
             'target': target,
             'baselines' : baselines,
+            'lengths': None,
             'additional_forward_args' : additional
         }
 

@@ -90,9 +90,12 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
 
     if lengths is None:
       # Assume fully packed batch, [B,T,E]
+      print(embedded_tokens.shape)
       lengths = torch.tensor(embedded_tokens.shape[1])
+      print("S", lengths.shape, lengths)
       lengths = lengths.repeat(embedded_tokens.shape[0])
       print("S", lengths.shape, lengths)
+
 
     lengths = lengths.cpu()
 
