@@ -24,7 +24,7 @@ from captum._utils.models.linear_model import SkLearnRidge
 
 class Interpreter:
     # >> Adapted from court-of-xai codebase
-    def __init__(self, name, model, mask_features_by_token=False, attribute_args=None):
+    def __init__(self, name, model, mask_features_by_token=False, attribute_args={}):
         self.attribute_args = attribute_args
         self.mask_features_by_token = mask_features_by_token
         self.predictor = model
