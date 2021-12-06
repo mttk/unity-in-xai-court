@@ -42,7 +42,7 @@ class Interpreter:
                 **self.attribute_args # To be added in subclass constructor
             )
         with torch.no_grad():
-            attributions = self.attribute(**args) # Embeddings are at index 0
+            attributions = self.attribute(**args)
         return attributions
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
@@ -72,6 +72,7 @@ class Interpreter:
         pad_idx = vocab.get_padding_index()
         pad_idxs = torch.full(inputs.shape, fill_value=pad_idx, device=inputs.device)
         baselines = embedding(pad_idxs)
+        print(baselines.shape, inputs.shape)
 
         attr_kwargs = {
             'inputs' : inputs,
