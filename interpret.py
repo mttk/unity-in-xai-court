@@ -42,10 +42,8 @@ class Interpreter:
                 **self.attribute_args # To be added in subclass constructor
             )
         with torch.inference_mode():
-            # 2. Embed instance
-            embedded_instance = self.predictor.embed(instance)
 
-            attributions = self.attribute(embedded_instance)
+            attributions = self.attribute(captum_inputs[0]) # Embeddings are at index 0
         return attributions
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
@@ -71,10 +69,10 @@ class Interpreter:
         else: # DistillBert?
             embedding = self.predictor.embeddings # Need to assure the embedding is always fetchable
     
+        # Will only work on single-sentence input data
         pad_idx = vocab.get_padding_index()
-        pad_idx = torch.LongTensor([[pad_idx]]).to(inputs[0].device)
-        pad_idxs = tuple(pad_idx.expand(tensor.size()[:2]) for tensor in inputs)
-        baselines = tuple(embedding(idx) for idx in pad_idxs)
+        pad_idxs = torch.full(*inputs.shape, fill_value=pad_idx)
+        baselines = embedding(pad_idxs)
 
         attr_kwargs = {
             'inputs' : inputs,
