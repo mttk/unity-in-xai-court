@@ -47,6 +47,7 @@ class _CaptumSubModel(torch.nn.Module):
     self.model = model
 
   def forward(self, word_embeddings, lengths=None):
+    print(lengths.shape)
     return self.model.forward_inner(
         embedded_tokens=word_embeddings,
         lengths=lengths,
@@ -170,9 +171,9 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
     # print("CI", inputs.shape, lengths.shape)
     with torch.no_grad():
       e = self.embedding(inputs)
-    pad_mask = create_pad_mask_from_length(inputs, lengths)
+    # pad_mask = create_pad_mask_from_length(inputs, lengths)
 
-    return e, None, (pad_mask)
+    return e, None, (lengths)
 
 class AdditiveAttention(nn.Module):
   """Tanh attention; query is a learned parameter (same as JW paper)
