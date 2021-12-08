@@ -47,11 +47,7 @@ class Interpreter:
 
         # 2. Attribute
         # print("[I]", args['inputs'])
-        attributions = self.attribute(
-            **{
-                'inputs':args['inputs'],
-                #'additional_forward_args': (args['additional_forward_args'])
-            })
+        attributions = self.attribute(**args)
         print(attributions.shape)
         # 3. Average/sum over embedding dimensions to obtain scores per-token
         if self.mask_features_by_token:
@@ -94,7 +90,7 @@ class Interpreter:
             'inputs' : inputs,
             'target': target,
             'baselines' : baselines,
-            'additional_forward_args' : additional # set to additional
+            'additional_forward_args' : None# additional # set to additional
         }
 
         # For methods that require a feature mask, define each token as one feature
