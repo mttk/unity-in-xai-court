@@ -33,9 +33,9 @@ class Interpreter:
     def interpret(self, instance, lengths, **kwargs):
         # Determine and set additional kwargs for the attribute method
 
-        print("[I]",instance.shape)
+        # print("[I]",instance.shape)
         captum_inputs = self.predictor.instances_to_captum_inputs(instance, lengths)
-        print("[I]",captum_inputs[0].shape)
+        # print("[I]",captum_inputs[0].shape)
 
         # 1. Prepare arguments
         args = dict(
@@ -43,12 +43,12 @@ class Interpreter:
                 **self.attribute_kwargs(captum_inputs, mask_features_by_token=self.mask_features_by_token), # General extra arguments
                 **self.attribute_args # To be added in subclass constructor
             )
-        print("[I]", args['inputs'].shape)
+        # print("[I]", args['inputs'].shape)
 
         # 2. Attribute
         # print("[I]", args['inputs'])
         attributions = self.attribute(**args)
-        print(attributions.shape)
+        # print(attributions.shape)
         # 3. Average/sum over embedding dimensions to obtain scores per-token
         if self.mask_features_by_token:
             attributions = attributions.mean(dim=-1).abs()
