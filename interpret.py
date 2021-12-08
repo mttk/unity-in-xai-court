@@ -22,6 +22,15 @@ from captum.attr import (
 
 from captum._utils.models.linear_model import SkLearnRidge
 
+INTERPRETERS = {
+    'deeplift': DeepLiftInterpreter,
+    'gradient-shap': GradientShapInterpreter,
+    'deeplift-shap': DeepLiftShapInterpreter
+}
+
+def get_interpreter(key):
+    return INTERPRETERS[key]
+
 class Interpreter:
     # >> Adapted from court-of-xai codebase
     def __init__(self, name, model, mask_features_by_token=False, attribute_args={}):
@@ -72,7 +81,7 @@ class Interpreter:
         pad_idx = vocab.get_padding_index()
         pad_idxs = torch.full(inputs.shape[:2], fill_value=pad_idx, device=inputs.device)
         baselines = embedding(pad_idxs)
-        print(baselines.shape, inputs.shape)
+        # print(baselines.shape, inputs.shape)
 
         attr_kwargs = {
             'inputs' : inputs,
@@ -104,6 +113,7 @@ class DeepLiftInterpreter(Interpreter, DeepLift):
         DeepLift.__init__(self, self.submodel)
 
 # DeepLiftShap
+# Errors out on <baselines> (tensor repeated?)
 class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
     def __init__(self, model):
         Interpreter.__init__(self, 'DeepLiftShap', model)

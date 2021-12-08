@@ -57,6 +57,10 @@ def make_parser():
   parser.add_argument('--freeze', action='store_true',
                         help='Freeze embeddings')
 
+  parser.add_argument("--interpreters", nargs="+",
+                      default=["deeplift", "grad-shap"], choices=["deeplift", "grad-shap", "deeplift-shap"],
+                      help="Specify a list of interpreters.")
+
   # Vocab specific arguments
   parser.add_argument('--max_vocab', type=int, default=10000,
                         help='maximum size of vocabulary')
@@ -224,11 +228,9 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
     optimizer.load_state_dict(o)
     criterion.load_state_dict(c)
 
-  interpreters = {
-    'deeplift': DeepLiftInterpreter(model),
-    #'deeplift-shap': DeepLiftShapInterpreter(model),
-    'gradient-shap': GradientShapInterpreter(model)
-  }
+  # Construct interpreters
+  interpreters = {i: get_interpreter(i)(model) for i in args.interpreters}
+  print(f"Interpreters: {' '.join(list(interpreters.keys()))}")
 
   loss = 0.
   # The actual training loop
