@@ -197,6 +197,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
 
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
+    print(x.shape)
 
     for k, interpreter in interpreters.items():
       batch_attributions = interpreter.interpret(x, lengths)

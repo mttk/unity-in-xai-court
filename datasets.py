@@ -25,6 +25,7 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
       return -len(tokenized)
 
     def cast_to_device(data):
+      if self.shuffle: print(data.shape)
       return torch.tensor(np.array(data), device=device)
 
     # Selects examples at given indices to support subset iteration.
