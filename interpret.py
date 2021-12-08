@@ -124,7 +124,7 @@ class GradientShapInterpreter(Interpreter, GradientShap):
 
 INTERPRETERS = {
     'deeplift': DeepLiftInterpreter,
-    'gradient-shap': GradientShapInterpreter,
+    'grad-shap': GradientShapInterpreter,
     'deeplift-shap': DeepLiftShapInterpreter
 }
 
