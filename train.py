@@ -201,12 +201,11 @@ def interpret_evaluate(interpreters, model, data, args, meta):
 
     y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
-    for interpreter in interpreters.values():
+    for k, interpreter in interpreters.items():
       batch_attributions = interpreter.interpret(x, lengths)
       batch_attributions = batch_attributions.detach().cpu().numpy()
-      name = interpreter.name
 
-      attributions[name].append(batch_attributions)
+      attributions[k].append(batch_attributions)
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
