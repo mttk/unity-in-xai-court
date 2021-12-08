@@ -133,7 +133,7 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
           continue
 
         for inst_i, inst_j in zip(importance_dictionary[k_i], importance_dictionary[k_j]):
-          r = corr(inst_i, inst_j)
+          r = corr.correlation(inst_i, inst_j)
           corrs.append(r.correlation)
         similarities[i,j,corr_idx] = np.mean(corrs)
   print(similarities)
