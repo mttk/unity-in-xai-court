@@ -46,10 +46,11 @@ class Interpreter:
         print("[I]", args['inputs'].shape)
 
         # 2. Attribute
+        print("[I]", args['inputs'])
         attributions = self.attribute(
             {
                 'inputs':args['inputs'],
-                'additional_forward_args': args['additional_forward_args']
+                'additional_forward_args': (args['additional_forward_args'])
             })
         print(attributions.shape)
         # 3. Average/sum over embedding dimensions to obtain scores per-token
