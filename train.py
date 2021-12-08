@@ -122,20 +122,21 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
   N = len(importance_dictionary)
   K = len(correlation_measures)
 
-  similarities = np.zeros((N,N,K)) # pairwise for each correlation
+  similarities = {} # pairwise for each correlation
 
   for corr_idx, corr in enumerate(correlation_measures):
     for i, k_i in enumerate(importance_dictionary):
       for j, k_j in enumerate(importance_dictionary):
         corrs = [] 
 
-        if k_i == k_j:
+        if k_i == k_j or (k_i, k_j) in similarities or (k_j, k_i) in similarities:
+          # Account for same & symmetry
           continue
 
         for inst_i, inst_j in zip(importance_dictionary[k_i], importance_dictionary[k_j]):
           r = corr.correlation(inst_i, inst_j)
           corrs.append(r[corr.id].correlation)
-        similarities[i,j,corr_idx] = np.mean(corrs)
+        similarities[(k_i, k_j)] = np.mean(corrs)
   print(similarities)
   return similarities
 
