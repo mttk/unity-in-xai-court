@@ -115,9 +115,9 @@ class GradientShapInterpreter(Interpreter, GradientShap):
 
     def __init__(self, model):
 
-        Interpreter.__init__(self, 'gradshap', model)
+        Interpreter.__init__(self, 'GradShap', model)
 
-        self.submodel = self.model.captum_sub_model()
+        self.submodel = model.captum_sub_model()
         GradientShap.__init__(self, self.submodel)
 
 
