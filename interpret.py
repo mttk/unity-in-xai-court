@@ -78,7 +78,7 @@ class Interpreter:
             'inputs' : inputs,
             'target': target,
             'baselines' : baselines,
-            'additional_forward_args' : None
+            'additional_forward_args' : None # set to additional
         }
 
         # For methods that require a feature mask, define each token as one feature
