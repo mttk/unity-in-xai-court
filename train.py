@@ -200,6 +200,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     print(x.shape)
 
     for k, interpreter in interpreters.items():
+      print(lengths.shape)
       batch_attributions = interpreter.interpret(x, lengths)
       batch_attributions = batch_attributions.detach().cpu().numpy()
 
