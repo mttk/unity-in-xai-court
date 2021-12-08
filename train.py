@@ -18,6 +18,7 @@ from util import Config
 from datasets import *
 from model import *
 from interpret import *
+from correlation_measures import *
 
 word_vector_files = {
   'glove' : os.path.expanduser('~/data/vectors/glove.840B.300d.txt')
@@ -115,6 +116,29 @@ def initialize_model(args, meta):
 
   return model
 
+def pairwise_correlation(importance_dictionary, correlation_measures):
+  # importance_dictionary -> [method_name: list_of_values_for_instances]
+
+  N = len(importance_dictionary)
+  K = len(correlation_measures)
+
+  similarities = np.zeros((N,N,K)) # pairwise for each correlation
+
+  for corr_idx, corr in enumerate(correlation_measures):
+    for i, k_i in enumerate(importance_dictionary):
+      for j, k_j in enumerate(importance_dictionary):
+        corrs = [] 
+
+        if k_i == k_j:
+          continue
+
+        for inst_i, inst_j in zip(importance_dictionary[k_i], importance_dictionary[k_j]):
+          r = corr(inst_i, inst_j)
+          corrs.append(r.correlation)
+        similarities[i,j,corr_idx] = np.mean(corrs)
+  print(similarities)
+  return similarities
+
 def evaluate(model, data, args, meta):
   model.eval()
 
@@ -204,7 +228,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
       batch_attributions = interpreter.interpret(x, lengths)
       batch_attributions = batch_attributions.detach().cpu().numpy()
 
-      attributions[k].append(batch_attributions)
+      attributions[k].extend(batch_attributions)
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
@@ -212,7 +236,6 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     model.zero_grad()
 
   result_dict = {
-    'loss': 0.,
     'attributions': attributions
   }
 
@@ -280,7 +303,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      interpret_evaluate(interpreters, model, val_iter, args, meta)
+      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta)
+      pairwise_correlation(result_dict['attributions'], [KendallTau()])
 
       #sample_sentence = "this is a very nice movie".split()
       #sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)
