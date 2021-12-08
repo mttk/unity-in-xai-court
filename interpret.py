@@ -33,7 +33,9 @@ class Interpreter:
     def interpret(self, instance, lengths, **kwargs):
         # Determine and set additional kwargs for the attribute method
 
+        print("[I]",instance.shape)
         captum_inputs = self.predictor.instances_to_captum_inputs(instance, lengths)
+        print("[I]",captum_inputs[0].shape)
 
         # 1. Prepare arguments
         args = dict(
