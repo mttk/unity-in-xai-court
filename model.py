@@ -89,6 +89,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
     # For captum compatibility: obtain embeddings as inputs,
     # return only the prediction tensor
 
+    print(lengths)
     if lengths is None:
       # Assume fully packed batch, [B,T,E]
       # print(embedded_tokens.shape)
@@ -166,9 +167,8 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
 
   @overrides
   def instances_to_captum_inputs(self, inputs, lengths, labels=None):
-    # Should map instances to word embedded inputs; TODO
+    # Technically just does an index -> embedding map right now
     # inputs: [BxT]
-    # print("CI", inputs.shape, lengths.shape)
     with torch.no_grad():
       e = self.embedding(inputs)
     # pad_mask = create_pad_mask_from_length(inputs, lengths)
