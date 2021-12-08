@@ -189,7 +189,7 @@ def train(model, data, optimizer, criterion, args, meta):
 def interpret_evaluate(interpreters, model, data, args, meta):
   model.train()
 
-  attributions = {}
+  attributions = {k:[] for k in interpreters}
 
   for batch_num, batch in enumerate(data):
 
@@ -206,10 +206,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
       batch_attributions = batch_attributions.detach().cpu().numpy()
       name = interpreter.name
 
-      if name not in attributions:
-        attributions[name] = batch_attributions
-      else:
-        attributions[name] = np.concatenate((attributions[name], batch_attributions))
+      attributions[name].append(batch_attributions)
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
@@ -219,7 +216,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     'attributions': attributions
   }
   for k, v in attributions.items():
-    print(k, v.shape)
+    print(k, v[0].shape)
 
   return result_dict
 
