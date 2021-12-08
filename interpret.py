@@ -22,15 +22,6 @@ from captum.attr import (
 
 from captum._utils.models.linear_model import SkLearnRidge
 
-INTERPRETERS = {
-    'deeplift': DeepLiftInterpreter,
-    'gradient-shap': GradientShapInterpreter,
-    'deeplift-shap': DeepLiftShapInterpreter
-}
-
-def get_interpreter(key):
-    return INTERPRETERS[key]
-
 class Interpreter:
     # >> Adapted from court-of-xai codebase
     def __init__(self, name, model, mask_features_by_token=False, attribute_args={}):
@@ -130,6 +121,19 @@ class GradientShapInterpreter(Interpreter, GradientShap):
         self.submodel = model.captum_sub_model()
         GradientShap.__init__(self, self.submodel)
 
+
+INTERPRETERS = {
+    'deeplift': DeepLiftInterpreter,
+    'gradient-shap': GradientShapInterpreter,
+    'deeplift-shap': DeepLiftShapInterpreter
+}
+
+def get_interpreter(key):
+    return INTERPRETERS[key]
+
+##########
+# Legacy #
+##########
 
 
 def visualize_attributions(visualization_records):
