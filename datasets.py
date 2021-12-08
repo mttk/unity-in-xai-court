@@ -1,6 +1,7 @@
 import os, sys
 import torch
 
+import numpy as np
 from podium import Vocab, Field, LabelField, BucketIterator
 from podium.datasets import TabularDataset
 from podium.vectorizers import GloVe
