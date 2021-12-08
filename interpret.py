@@ -30,7 +30,7 @@ class Interpreter:
         self.predictor = model
         self.name = name
 
-    def interpret_instance(self, instance, lengths, **kwargs):
+    def interpret(self, instance, lengths, **kwargs):
         # Determine and set additional kwargs for the attribute method
 
         captum_inputs = self.predictor.instances_to_captum_inputs(instance, lengths)

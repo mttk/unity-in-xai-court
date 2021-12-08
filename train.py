@@ -122,7 +122,6 @@ def evaluate(model, data, args, meta):
 
   with torch.inference_mode():
     for batch_num, batch in enumerate(data):
-      #if batch_num > 100: break # checking beer imitation
 
       t = time.time()
       model.zero_grad()
@@ -187,6 +186,30 @@ def train(model, data, optimizer, criterion, args, meta):
   }
   return result_dict
 
+def interpret_evaluate(interpreters, model, data, args, meta):
+  model.train()
+
+  attributions = {}
+
+  for batch_num, batch in enumerate(data):
+
+    t = time.time()
+    model.zero_grad()
+
+    # Unpack batch & cast to device
+    (x, lengths), y = batch.text, batch.label
+
+    y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
+
+    for interpreter in interpreters.values():
+      attributions = interpreter.interpret(x, lengths)
+      print(interpreter.name, attributions.shape)
+
+    print("[Batch]: {}/{} in {:.5f} seconds".format(
+          batch_num, len(data), time.time() - t), end='\r', flush=True)
+
+  result_dict = {'loss': 0.}
+  return result_dict
 
 def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=None):
   # Input: model arguments and dataset splits, whether to restore the model
@@ -247,14 +270,16 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
-      sample_sentence = "this is a very nice movie".split()
-      sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)
-      sample_instance = sample_instance.to(device)
-      lengths = torch.tensor([len(sample_instance)], device=device)
+      interpret_evaluate(interpreters, model, val_iter, args, meta)
 
-      for interpreter in interpreters.values():
-        attributions = interpreter.interpret_instance(sample_instance, lengths)
-        print(interpreter.name, attributions)
+      #sample_sentence = "this is a very nice movie".split()
+      #sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)
+      #sample_instance = sample_instance.to(device)
+      #lengths = torch.tensor([len(sample_instance)], device=device)
+
+      #for interpreter in interpreters.values():
+      #  attributions = interpreter.interpret_instance(sample_instance, lengths)
+      #  print(interpreter.name, attributions)
 
 
       print(f"Epoch={epoch}, evaluating on validation set:")
