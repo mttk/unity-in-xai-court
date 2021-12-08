@@ -61,6 +61,9 @@ def make_parser():
   parser.add_argument("--interpreters", nargs="+",
                       default=["deeplift", "grad-shap"], choices=["deeplift", "grad-shap", "deeplift-shap"],
                       help="Specify a list of interpreters.")
+  parser.add_argument("--correlation_measures", nargs="+",
+                      default=["kendall-tau"], choices=["kendall-tau"],
+                      help="Specify a list of correlation metrics.")
 
   # Vocab specific arguments
   parser.add_argument('--max_vocab', type=int, default=10000,
@@ -122,23 +125,22 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
   N = len(importance_dictionary)
   K = len(correlation_measures)
 
-  similarities = {} # pairwise for each correlation
+  scores = {} # pairwise for each correlation
 
   for corr_idx, corr in enumerate(correlation_measures):
     for i, k_i in enumerate(importance_dictionary):
       for j, k_j in enumerate(importance_dictionary):
         corrs = [] 
 
-        if k_i == k_j or (k_i, k_j) in similarities or (k_j, k_i) in similarities:
+        if k_i == k_j or (k_i, k_j) in scores or (k_j, k_i) in scores:
           # Account for same & symmetry
           continue
 
         for inst_i, inst_j in zip(importance_dictionary[k_i], importance_dictionary[k_j]):
           r = corr.correlation(inst_i, inst_j)
           corrs.append(r[corr.id].correlation)
-        similarities[(k_i, k_j)] = np.mean(corrs)
-  print(similarities)
-  return similarities
+        scores[(k_i, k_j)] = np.mean(corrs)
+  return scores
 
 def evaluate(model, data, args, meta):
   model.eval()
@@ -254,7 +256,6 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
   cuda = torch.cuda.is_available() and args.gpu != -1
   device = torch.device("cpu") if not cuda else torch.device(f"cuda:{args.gpu}")
-  print(device)
   # Setup the loss fn
   if meta.num_labels == 2:
     # Binary classification
@@ -289,6 +290,10 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   interpreters = {i: get_interpreter(i)(model) for i in args.interpreters}
   print(f"Interpreters: {' '.join(list(interpreters.keys()))}")
 
+  # Construct correlation metrics
+  correlations = [get_corr(key) for key in args.correlation_measures]
+  print(f"Correlation measures: {correlations}")
+
   loss = 0.
   # The actual training loop
   try:
@@ -305,7 +310,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       total_time = time.time()
 
       result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta)
-      pairwise_correlation(result_dict['attributions'], [KendallTau()])
+      pairwise_correlation(result_dict['attributions'], correlations)
 
       #sample_sentence = "this is a very nice movie".split()
       #sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)

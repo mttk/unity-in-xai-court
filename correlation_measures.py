@@ -328,3 +328,11 @@ class KendallTauAPB(CorrelationMeasure):
         return {
             self.id: CorrelationResult(correlation=tau_ap_b, k=len(a))
         }
+
+
+CORRELATIONS = {
+    'kendall-tau': KendallTau
+}
+
+def get_corr(key):
+    return CORRELATIONS[key]
