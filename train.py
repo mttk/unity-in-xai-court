@@ -140,6 +140,7 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
           r = corr.correlation(inst_i, inst_j)
           corrs.append(r[corr.id].correlation)
         scores[(k_i, k_j)] = np.mean(corrs)
+  print(scores)
   return scores
 
 def evaluate(model, data, args, meta):
@@ -291,7 +292,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   print(f"Interpreters: {' '.join(list(interpreters.keys()))}")
 
   # Construct correlation metrics
-  correlations = [get_corr(key) for key in args.correlation_measures]
+  correlations = [get_corr(key)() for key in args.correlation_measures]
   print(f"Correlation measures: {correlations}")
 
   loss = 0.
