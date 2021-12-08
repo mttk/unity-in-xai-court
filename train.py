@@ -194,12 +194,9 @@ def interpret_evaluate(interpreters, model, data, args, meta):
   for batch_num, batch in enumerate(data):
 
     t = time.time()
-    model.zero_grad()
 
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
-
-    y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
     for k, interpreter in interpreters.items():
       batch_attributions = interpreter.interpret(x, lengths)
@@ -210,12 +207,15 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
 
+    model.zero_grad()
+
   result_dict = {
     'loss': 0.,
     'attributions': attributions
   }
-  for k, v in attributions.items():
-    print(k, v[0].shape)
+
+  #for k, v in attributions.items():
+  #  print(k, v[0].shape)
 
   return result_dict
 
