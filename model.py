@@ -88,7 +88,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
   def forward_inner(self, embedded_tokens, lengths):
     # For captum compatibility: obtain embeddings as inputs,
     # return only the prediction tensor
-
+    print(embedded_tokens.shape)
     print(lengths)
     if lengths is None:
       # Assume fully packed batch, [B,T,E]
