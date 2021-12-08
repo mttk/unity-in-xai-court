@@ -45,7 +45,7 @@ class Interpreter:
         # 2. Attribute
         attributions = self.attribute(**args)
 
-        # 3. Average/sum over embedding dimensions
+        # 3. Average/sum over embedding dimensions to obtain scores per-token
         if self.mask_features_by_token:
             attributions = attributions.mean(dim=-1).abs()
         else:

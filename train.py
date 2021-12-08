@@ -202,13 +202,25 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
     for interpreter in interpreters.values():
-      attributions = interpreter.interpret(x, lengths)
-      print(interpreter.name, x.shape, attributions.shape)
+      batch_attributions = interpreter.interpret(x, lengths)
+      batch_attributions = batch_attributions.detach().cpu().numpy()
+      name = interpreter.name
+
+      if name not in attributions:
+        attributions[name] = batch_attributions
+      else:
+        attributions[name] = np.concatenate((attributions[name], batch_attributions))
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
 
-  result_dict = {'loss': 0.}
+  result_dict = {
+    'loss': 0.,
+    'attributions': attributions
+  }
+  for k, v in attributions.items():
+    print(k, v.shape)
+
   return result_dict
 
 def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=None):
