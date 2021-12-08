@@ -203,7 +203,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
 
     for interpreter in interpreters.values():
       attributions = interpreter.interpret(x, lengths)
-      print(interpreter.name, attributions.shape)
+      print(interpreter.name, x.shape, attributions.shape)
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
