@@ -41,8 +41,16 @@ class Interpreter:
                 **self.attribute_kwargs(captum_inputs, mask_features_by_token=self.mask_features_by_token), # General extra arguments
                 **self.attribute_args # To be added in subclass constructor
             )
-        with torch.no_grad():
-            attributions = self.attribute(**args)
+
+        # 2. Attribute
+        attributions = self.attribute(**args)
+
+        # 3. Average/sum over embedding dimensions
+        if self.mask_features_by_token:
+            attributions = attributions.mean(dim=-1).abs()
+        else:
+            attributions = attributions.sum(dim=-1).abs()
+
         return attributions
 
     def attribute_kwargs(self, captum_inputs, mask_features_by_token=False):
