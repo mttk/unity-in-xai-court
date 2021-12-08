@@ -310,17 +310,10 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       total_time = time.time()
 
+      # Compute importance scores for tokens on all batches of validation split
       result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta)
-      pairwise_correlation(result_dict['attributions'], correlations)
-
-      #sample_sentence = "this is a very nice movie".split()
-      #sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence)).unsqueeze(0)
-      #sample_instance = sample_instance.to(device)
-      #lengths = torch.tensor([len(sample_instance)], device=device)
-
-      #for interpreter in interpreters.values():
-      #  attributions = interpreter.interpret_instance(sample_instance, lengths)
-      #  print(interpreter.name, attributions)
+      # Compute pairwise correlations between interpretability methods
+      scores = pairwise_correlation(result_dict['attributions'], correlations)
 
 
       print(f"Epoch={epoch}, evaluating on validation set:")
