@@ -48,7 +48,7 @@ class Interpreter:
         # 2. Attribute
         print("[I]", args['inputs'])
         attributions = self.attribute(
-            {
+            **{
                 'inputs':args['inputs'],
                 'additional_forward_args': (args['additional_forward_args'])
             })
