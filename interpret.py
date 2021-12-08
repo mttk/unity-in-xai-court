@@ -110,6 +110,17 @@ class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
         self.submodel = model.captum_sub_model()
         DeepLift.__init__(self, self.submodel)
 
+# GradientShap
+class GradientShapInterpreter(Interpreter, GradientShap):
+
+    def __init__(self, model):
+
+        Interpreter.__init__(self, 'gradshap', predictor)
+
+        self.submodel = self.model.captum_sub_model()
+        GradientShap.__init__(self, self.submodel)
+
+
 
 def visualize_attributions(visualization_records):
     cast_records = []
