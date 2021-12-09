@@ -59,7 +59,7 @@ def make_parser():
                         help='Freeze embeddings')
 
   parser.add_argument("--interpreters", nargs="+",
-                      default=["deeplift", "grad-shap"], choices=["deeplift", "grad-shap", "deeplift-shap"],
+                      default=["deeplift", "grad-shap"], choices=["deeplift", "grad-shap", "deeplift-shap", "int-grad", "lime"],
                       help="Specify a list of interpreters.")
   parser.add_argument("--correlation_measures", nargs="+",
                       default=["kendall-tau"], choices=["kendall-tau"],
