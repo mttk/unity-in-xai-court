@@ -151,7 +151,7 @@ class LIMEInterpreter(Interpreter, Lime):
         self,
         model,
         mask_features_by_token = True,
-        attribute_args = None
+        attribute_args = {}
     ):
         Interpreter.__init__(self, 'lime', model, mask_features_by_token, attribute_args)
         self.lin_model = SkLearnRidge()
