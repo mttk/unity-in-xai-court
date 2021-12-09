@@ -116,7 +116,7 @@ class DeepLiftInterpreter(Interpreter, DeepLift):
         DeepLift.__init__(self, self.submodel)
 
 # DeepLiftShap
-# Errors out on <baselines> (tensor repeated?)
+# Errors out on <baselines> (tensor repeated?) TBD debug
 class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
     def __init__(self, model):
         Interpreter.__init__(self, 'DeepLiftShap', model)
@@ -133,11 +133,37 @@ class GradientShapInterpreter(Interpreter, GradientShap):
         self.submodel = model.captum_sub_model()
         GradientShap.__init__(self, self.submodel)
 
+# IntegratedGradients
+class IntegratedGradientsInterpreter(Interpreter, IntegratedGradients):
+
+    def __init__(self, model):
+
+        Interpreter.__init__(self, 'intgrad', model)
+
+        self.submodel = model.captum_sub_model()
+        IntegratedGradients.__init__(self, self.submodel)
+
+# Lime
+class LIMEInterpreter(Interpreter, Lime):
+
+    def __init__(
+        self,
+        model,
+        mask_features_by_token = True,
+        attribute_args = None
+    ):
+        Interpreter.__init__(self, 'lime', model, mask_features_by_token, attribute_args)
+        self.lin_model = SkLearnRidge()
+        self.submodel = model.captum_sub_model()
+        Lime.__init__(self, self.submodel, self.lin_model)
+
 
 INTERPRETERS = {
     'deeplift': DeepLiftInterpreter,
     'grad-shap': GradientShapInterpreter,
-    'deeplift-shap': DeepLiftShapInterpreter
+    'deeplift-shap': DeepLiftShapInterpreter,
+    'int-grad': IntegratedGradientsInterpreter,
+    'lime': LIMEInterpreter
 }
 
 def get_interpreter(key):
