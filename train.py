@@ -140,7 +140,7 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
           r = corr.correlation(inst_i, inst_j)
           corrs.append(r[corr.id].correlation)
         scores[(k_i, k_j)] = np.mean(corrs)
-  print(scores)
+  pprint(scores)
   return scores
 
 def evaluate(model, data, args, meta):
