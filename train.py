@@ -91,7 +91,9 @@ def make_parser():
 
   # Active learning arguments
   parser.add_argument('--query-size', type=int, default=50,
-                      help='Active learning query size.')
+                        help='Active learning query size.')
+  parser.add_argument('--warm-start-size', type=int, default=50,
+                        help='Initial AL batch size.')
 
   return parser.parse_args()
 

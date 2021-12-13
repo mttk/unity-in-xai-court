@@ -12,12 +12,15 @@ from typing import Any, Dict, List, Optional, Union, Tuple, Iterator
 
 import numpy as np
 from overrides import overrides
-from pyircor.tauap import tauap_b
+
+# from pyircor.tauap import tauap_b
 import scipy.stats as stats
 from scipy.stats import kendalltau, spearmanr, pearsonr, weightedtau
 
 
-def unordered_cartesian_product(x: List[Any], y: List[Any]) -> Iterator[List[Tuple[Any, Any]]]:
+def unordered_cartesian_product(
+    x: List[Any], y: List[Any]
+) -> Iterator[List[Tuple[Any, Any]]]:
     """Yield all unique unordered pairs from the Cartesian product of x and y"""
     seen = set()
     for (i, j) in itertools.product(x, y):
@@ -28,7 +31,10 @@ def unordered_cartesian_product(x: List[Any], y: List[Any]) -> Iterator[List[Tup
 
         yield (i, j)
 
-def bucket_order(x: np.ndarray, k: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
+
+def bucket_order(
+    x: np.ndarray, k: Optional[int] = None
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Associate a top-k full (no ties) or partial ranking (with ties) with a bucket order per Fagin et al. (2004)
 
@@ -42,26 +48,37 @@ def bucket_order(x: np.ndarray, k: Optional[int] = None) -> Tuple[np.ndarray, np
     if k is None:
         k = x.size
 
-    x_ranked = stats.rankdata(x, method='dense')
+    x_ranked = stats.rankdata(x, method="dense")
     rank_count = Counter(x_ranked)
     unique_ranks = sorted(list(set(x_ranked)), reverse=True)
 
     # The position of bucket B_i is the average location within bucket B_i
     bucket_sizes = [rank_count[rank] for rank in unique_ranks]
     bucket_positions = []
+
     def get_bucket_position(bucket_sizes, bucket_index):
         return sum(bucket_sizes[:bucket_index]) + (bucket_sizes[bucket_index] + 1) / 2
-    bucket_positions = {rank: get_bucket_position(bucket_sizes, i) for i, rank in zip(range(len(bucket_sizes)), unique_ranks)}
+
+    bucket_positions = {
+        rank: get_bucket_position(bucket_sizes, i)
+        for i, rank in zip(range(len(bucket_sizes)), unique_ranks)
+    }
 
     bucket_order = np.array([bucket_positions[i] for i in x_ranked])
 
     top_k_bucket_positions = sorted(bucket_positions.values())[:k]
-    top_k = [i for i, bp in enumerate(x_ranked) if bucket_positions[bp] in top_k_bucket_positions]
+    top_k = [
+        i
+        for i, bp in enumerate(x_ranked)
+        if bucket_positions[bp] in top_k_bucket_positions
+    ]
 
     return bucket_order, top_k
 
 
-def kendall_top_k(a: Any, b: Any, k: int = None, kIsNonZero: bool = False, p: float = 0.5) -> Tuple[float, int]:
+def kendall_top_k(
+    a: Any, b: Any, k: int = None, kIsNonZero: bool = False, p: float = 0.5
+) -> Tuple[float, int]:
     """
     Compute the top-k kendall-tau correlation metric for the given full (no ties) or partial (with ties) ranked lists
 
@@ -85,7 +102,9 @@ def kendall_top_k(a: Any, b: Any, k: int = None, kIsNonZero: bool = False, p: fl
         Tuple[float, int]: A tuple of the computed correlation and the value used for k
     """
     if not (isinstance(p, numbers.Real) and p > 0 and p <= 1):
-        raise ValueError("The penalty parameter p must be numeric and in the range (0,1]")
+        raise ValueError(
+            "The penalty parameter p must be numeric and in the range (0,1]"
+        )
 
     x = np.array(a).ravel()
     y = np.array(b).ravel()
@@ -126,9 +145,10 @@ def kendall_top_k(a: Any, b: Any, k: int = None, kIsNonZero: bool = False, p: fl
 
         # Case 3: i and j are in the same bucket in one of the partial rankings, but in different buckets in the other
         # penalty = p
-        elif (i_bucket_x == j_bucket_x and i_bucket_y != j_bucket_y) or (i_bucket_y == j_bucket_y and i_bucket_x != j_bucket_x):
+        elif (i_bucket_x == j_bucket_x and i_bucket_y != j_bucket_y) or (
+            i_bucket_y == j_bucket_y and i_bucket_x != j_bucket_x
+        ):
             kendall_distance += p
-
 
     # Normalize to range [-1, 1]
     correlation = kendall_distance / max(1, normalization_constant)
@@ -140,11 +160,12 @@ def kendall_top_k(a: Any, b: Any, k: int = None, kIsNonZero: bool = False, p: fl
 
 def enforce_same_shape(func):
     def wrapper_enforce_same_shape(*args, **kwargs):
-        rel_args = args[1:] # skip self
+        rel_args = args[1:]  # skip self
         all_same_shape = all(_arg.shape == rel_args[0].shape for _arg in rel_args)
         if not all_same_shape:
             raise ValueError(f"All arguments must have the same shape")
         return func(*args, **kwargs)
+
     return wrapper_enforce_same_shape
 
 
@@ -176,7 +197,8 @@ class CorrelationMeasure:
 
             Defaults to False.
     """
-    def __init__(self, identifier: str, unfair_in_isolation: Optional[bool] = False): 
+
+    def __init__(self, identifier: str, unfair_in_isolation: Optional[bool] = False):
         self._id = identifier
         self.unfair_in_isolation = unfair_in_isolation
 
@@ -206,7 +228,6 @@ class CorrelationMeasure:
 
 
 class KendallTau(CorrelationMeasure):
-
     def __init__(self):
         super().__init__(identifier="kendall_tau")
 
@@ -214,13 +235,10 @@ class KendallTau(CorrelationMeasure):
     @overrides
     def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
         kt, _ = kendalltau(a, b)
-        return {
-            self.id: CorrelationResult(correlation=kt, k=len(a))
-        }
+        return {self.id: CorrelationResult(correlation=kt, k=len(a))}
 
 
 class SpearmanRho(CorrelationMeasure):
-
     def __init__(self):
         super().__init__(identifier="spearman_rho")
 
@@ -228,13 +246,10 @@ class SpearmanRho(CorrelationMeasure):
     @overrides
     def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
         sr, _ = spearmanr(a, b)
-        return {
-            self.id: CorrelationResult(correlation=sr, k=len(a))
-        }
+        return {self.id: CorrelationResult(correlation=sr, k=len(a))}
 
 
 class PearsonR(CorrelationMeasure):
-
     def __init__(self):
         super().__init__(identifier="pearson_r")
 
@@ -242,13 +257,10 @@ class PearsonR(CorrelationMeasure):
     @overrides
     def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
         pr, _ = pearsonr(a, b)
-        return {
-            self.id: CorrelationResult(correlation=pr, k=len(a))
-        }
+        return {self.id: CorrelationResult(correlation=pr, k=len(a))}
 
 
 class KendallTauTopKVariable(CorrelationMeasure):
-
     def __init__(self, percent_top_k: List[float]):
         super().__init__(identifier="kendall_top_k_variable")
         self.variable_lengths = percent_top_k
@@ -260,12 +272,13 @@ class KendallTauTopKVariable(CorrelationMeasure):
         for variable_length in self.variable_lengths:
             k = max(1, math.floor(len(a) * variable_length))
             kt_top_k, k = kendall_top_k(a=a, b=b, k=k)
-            results[f"{self.id}_{variable_length}"] = CorrelationResult(correlation=kt_top_k, k=k)
+            results[f"{self.id}_{variable_length}"] = CorrelationResult(
+                correlation=kt_top_k, k=k
+            )
         return results
 
 
 class KendallTauTopKFixed(CorrelationMeasure):
-
     def __init__(self, fixed_top_k: List[int]):
         super().__init__(identifier="kendall_top_k_fixed")
         self.fixed_lengths = fixed_top_k
@@ -276,12 +289,13 @@ class KendallTauTopKFixed(CorrelationMeasure):
         results = {}
         for fixed_length in self.fixed_lengths:
             kt_top_k, k = kendall_top_k(a=a, b=b, k=fixed_length)
-            results[f"{self.id}_{fixed_length}"] = CorrelationResult(correlation=kt_top_k, k=k)
+            results[f"{self.id}_{fixed_length}"] = CorrelationResult(
+                correlation=kt_top_k, k=k
+            )
         return results
 
 
 class KendallTauTopKNonZero(CorrelationMeasure):
-
     def __init__(self):
         super().__init__(identifier="kendall_top_k_non_zero", unfair_in_isolation=True)
 
@@ -291,16 +305,13 @@ class KendallTauTopKNonZero(CorrelationMeasure):
 
         # k may be explicitly specified in some cases to ensure fair comparisons
         k = kwargs.get("k")
-        kIsNonZero = (k==None)
+        kIsNonZero = k == None
 
         kt_top_k, k = kendall_top_k(a=a, b=b, kIsNonZero=kIsNonZero, k=k)
-        return {
-            self.id: CorrelationResult(correlation=kt_top_k, k=k)
-        }
+        return {self.id: CorrelationResult(correlation=kt_top_k, k=k)}
 
 
 class WeightedKendallTau(CorrelationMeasure):
-
     def __init__(self, alphas: List[float]):
         super().__init__(identifier="weighted_kendall_tau")
         self.alphas = alphas
@@ -317,7 +328,6 @@ class WeightedKendallTau(CorrelationMeasure):
 
 
 class KendallTauAPB(CorrelationMeasure):
-
     def __init__(self):
         super().__init__(identifier="kendall_tau_ap_b")
 
@@ -325,14 +335,11 @@ class KendallTauAPB(CorrelationMeasure):
     @overrides
     def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
         tau_ap_b = tauap_b(a, b)
-        return {
-            self.id: CorrelationResult(correlation=tau_ap_b, k=len(a))
-        }
+        return {self.id: CorrelationResult(correlation=tau_ap_b, k=len(a))}
 
 
-CORRELATIONS = {
-    'kendall-tau': KendallTau
-}
+CORRELATIONS = {"kendall-tau": KendallTau}
+
 
 def get_corr(key):
     return CORRELATIONS[key]

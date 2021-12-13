@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import torch
 
-from ..datasets import make_iterable
+from datasets import make_iterable
 
 
 class Sampler(ABC):
@@ -32,7 +32,8 @@ class Sampler(ABC):
             out = forward_fn(x, lengths=lengths)
             out_list.append(out)
 
-        res = torch.stack(out_list)
+        res = torch.cat(out_list)
+        print("Result shape:", res.shape)
         return res
 
 

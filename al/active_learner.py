@@ -4,7 +4,7 @@ import time
 
 from train import *
 from datasets import *
-from uncertainty import MarginSampler
+from al.uncertainty import MarginSampler
 
 
 class ActiveLearner:
@@ -17,32 +17,71 @@ class ActiveLearner:
         self.args = args
         self.meta = meta
 
-    def al_loop(self, model, n_warm_start, query_size):
+        self.test_iter = make_iterable(
+            self.test_set,
+            self.device,
+            batch_size=self.batch_size,
+            train=False,
+        )
+
+    def al_loop(
+        self,
+        create_model_fn,
+        optimizer,
+        criterion,
+        warm_start_size,
+        query_size,
+        interpreters,
+        correlations,
+    ):
+        score_list = []
+
         # Initialize label mask.
         lab_mask = np.full(len(self.train_set), False)
         # TODO: stratified warm start
-        random_inds = np.random.choice(len(self.train_set), n_warm_start, replace=False)
+        random_inds = np.random.choice(
+            len(self.train_set), warm_start_size, replace=False
+        )
         lab_mask[random_inds] = True
 
+        al_epoch = 0
         # Loop until all of the labels are used up.
         while not lab_mask.sum() == lab_mask.size:
-            # TODO
+            print(f"AL epoch: {al_epoch}")
+
             # 1. train model with labeled data: fine-tune vs. re-train
-            result_dict_train = self._train_model(model)
-            # ...
+            print("Training on labeled data...")
+            model = create_model_fn(self.args, self.meta)
+            model.to(self.device)
+            result_dict_train = self._train_model(model, lab_mask, optimizer, criterion)
+
             # 2. evaluate model (test set)
-            result_dict_test = self._evaluate_model(model)
-            # ...
+            eval_result_dict = self._evaluate_model(model)
+
             # 3. Retrieve active sample.
+            print("Retrieving AL sample...")
             unlab_inds, *_ = np.where(lab_mask)
             selected_inds = self.sampler.query(
                 query_size=query_size, unlab_inds=unlab_inds, model=model
             )
             lab_mask[selected_inds] = True
-            # 4. calculate intepretability metrics
-            # ...
 
-    def _train_model(self, model, lab_mask):
+            # 4. calculate intepretability metrics
+            print("Calculating intepretability metrics...")
+            intepret_result_dict = interpret_evaluate(
+                interpreters, model, self.test_iter, self.args, self.meta
+            )
+            scores = pairwise_correlation(
+                intepret_result_dict["attributions"], correlations
+            )
+            score_list.append(scores)
+            print("Interpretability scores", score_list)
+
+            al_epoch += 1
+
+        return score_list
+
+    def _train_model(self, model, lab_mask, optimizer, criterion):
         model.train()
 
         data = make_iterable(
@@ -75,12 +114,12 @@ class ActiveLearner:
                 # binary cross entropy, cast labels to float
                 y = y.type(torch.float)
 
-            loss = self.criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
+            loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
 
             total_loss += float(loss)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), self.args.clip)
-            self.optimizer.step()
+            optimizer.step()
 
             print(
                 "[Batch]: {}/{} in {:.5f} seconds".format(
@@ -92,16 +131,10 @@ class ActiveLearner:
         result_dict = {"loss": total_loss / len(data) / data.batch_size}
         return result_dict
 
-    def _evaluate_model(self, model, lab_mask):
+    def _evaluate_model(self, model):
         model.eval()
 
-        data = make_iterable(
-            self.train_set,
-            self.device,
-            batch_size=self.batch_size,
-            train=True,
-            indices=lab_mask,
-        )
+        data = self.test_iter
         accuracy, confusion_matrix = 0, np.zeros(
             (self.meta.num_labels, self.meta.num_labels), dtype=int
         )
@@ -166,45 +199,3 @@ class ActiveLearner:
                 confusion_matrix[int(i), int(j)] += 1
 
         return accuracy + correct, confusion_matrix
-
-
-if __name__ == "__main__":
-    args = make_parser()
-    (train, val, test), vocab = load_imdb()
-
-    meta = Config()
-    meta.num_labels = 2
-    meta.num_tokens = len(vocab)
-    meta.padding_idx = vocab.get_padding_index()
-    meta.vocab = vocab
-
-    cuda = torch.cuda.is_available() and args.gpu != -1
-    device = torch.device("cpu") if not cuda else torch.device(f"cuda:{args.gpu}")
-
-    # Setup the loss fn
-    if meta.num_labels == 2:
-        # Binary classification
-        criterion = nn.BCEWithLogitsLoss()
-        meta.num_targets = 1
-    else:
-        # Multiclass classification
-        criterion = nn.CrossEntropyLoss()
-        meta.num_targets = meta.num_labels
-
-    # Initialize model
-    model = initialize_model(args, meta)
-    model.to(device)
-
-    optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=args.l2)
-
-    # Construct interpreters
-    interpreters = {i: get_interpreter(i)(model) for i in args.interpreters}
-    print(f"Interpreters: {' '.join(list(interpreters.keys()))}")
-
-    # Construct correlation metrics
-    correlations = [get_corr(key)() for key in args.correlation_measures]
-    print(f"Correlation measures: {correlations}")
-
-    sampler = MarginSampler(dataset=train, batch_size=args.batch_size, device=device)
-    active_learner = ActiveLearner(sampler, train, valid, device, args, meta)
-    pass
