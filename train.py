@@ -89,6 +89,10 @@ def make_parser():
   parser.add_argument('--restore', type=str, default='',
                         help='File to restore model from')
 
+  # Active learning arguments
+  parser.add_argument('--query-size', type=int, default=50,
+                      help='Active learning query size.')
+
   return parser.parse_args()
 
 
