@@ -3,7 +3,7 @@ import torch
 import time
 
 from train import *
-from datasets import *
+from dataloaders import *
 from al.uncertainty import MarginSampler
 
 

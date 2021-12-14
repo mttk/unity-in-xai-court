@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
-from datasets import make_iterable
+from dataloaders import make_iterable
 
 
 class Sampler(ABC):
