@@ -50,7 +50,7 @@ class ActiveLearner:
             print(f"AL epoch: {al_epoch}")
 
             # 1. train model with labeled data: fine-tune vs. re-train
-            print("Training on labeled data...")
+            print(f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data...")
             model = create_model_fn(self.args, self.meta)
             model.to(self.device)
             result_dict_train = self._train_model(model, lab_mask, optimizer, criterion)
@@ -60,9 +60,12 @@ class ActiveLearner:
 
             # 3. Retrieve active sample.
             print("Retrieving AL sample...")
-            unlab_inds, *_ = np.where(lab_mask)
+            unlab_inds, *_ = np.where(~lab_mask)
             selected_inds = self.sampler.query(
-                query_size=query_size, unlab_inds=unlab_inds, model=model
+                query_size=query_size,
+                unlab_inds=unlab_inds,
+                model=model,
+                lab_mask=lab_mask,
             )
             lab_mask[selected_inds] = True
 
@@ -75,7 +78,7 @@ class ActiveLearner:
                 intepret_result_dict["attributions"], correlations
             )
             score_list.append(scores)
-            print("Interpretability scores", score_list)
+            print("Interpretability scores", scores)
 
             al_epoch += 1
 

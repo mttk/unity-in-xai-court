@@ -1,6 +1,7 @@
 from al.active_learner import ActiveLearner
 from al.uncertainty import MarginSampler
 from al.sampler import RandomSampler
+from al.kmeans import KMeansSampler
 from datasets import *
 from train import *
 
@@ -42,7 +43,11 @@ if __name__ == "__main__":
     correlations = [get_corr(key)() for key in args.correlation_measures]
     print(f"Correlation measures: {correlations}")
 
-    sampler = RandomSampler(dataset=train, batch_size=args.batch_size, device=device)
+    sampler = KMeansSampler(
+        dataset=train,
+        batch_size=args.batch_size,
+        device=device,
+    )
     active_learner = ActiveLearner(sampler, train, val, device, args, meta)
 
     active_learner.al_loop(

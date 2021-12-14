@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import torch
+from torch.nn.utils.rnn import pad_sequence
 
 from datasets import make_iterable
 
@@ -31,7 +32,8 @@ class Sampler(ABC):
                 lengths = None
             out = forward_fn(x, lengths=lengths)
             out_list.append(out)
-
+        
+        print(out_list[0].shape, out_list[1].shape)
         res = torch.cat(out_list)
         print("Result shape:", res.shape)
         return res

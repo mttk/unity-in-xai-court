@@ -85,7 +85,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
 
     self.decoder = nn.Linear(attention_dim, meta.num_targets)
 
-  def forward_inner(self, embedded_tokens, lengths):
+  def encode(self, embedded_tokens, lengths):
     # For captum compatibility: obtain embeddings as inputs,
     # return only the prediction tensor
     # print(embedded_tokens.shape)
@@ -98,35 +98,40 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
       lengths = lengths.repeat(embedded_tokens.shape[0])
       # print("S", lengths.shape, lengths)
 
-
     lengths = lengths.cpu()
 
-    h = torch.nn.utils.rnn.pack_padded_sequence(embedded_tokens, batch_first=True, lengths=lengths)
+    h = torch.nn.utils.rnn.pack_padded_sequence(
+        embedded_tokens, batch_first=True, lengths=lengths
+    )
     # print("FI", h, embedded_tokens.shape)
     o, h = self.rnn(h)
     o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first=False)
 
-    if isinstance(h, tuple): # LSTM
-      h = h[1] # take the cell state
+    if isinstance(h, tuple):  # LSTM
+        h = h[1]  # take the cell state
 
-    if self.bidirectional: # need to concat the last 2 hidden layers
-      h = torch.cat([h[-1], h[-2]], dim=1)
+    if self.bidirectional:  # need to concat the last 2 hidden layers
+        h = torch.cat([h[-1], h[-2]], dim=1)
     else:
-      h = h[-1]
+        h = h[-1]
 
     m = None
     # m = create_pad_mask_from_length(embedded_tokens, lengths)
-#    if p_mask is not None:
-#      #print(m.shape, p_mask.shape)
-#      m = m & ~p_mask.transpose(0,1)
-
+    #    if p_mask is not None:
+    #      #print(m.shape, p_mask.shape)
+    #      m = m & ~p_mask.transpose(0,1)
 
     # Perform self-attention
     # print(h.shape, o.shape) # m = 32, 300
     attn_weights, hidden = self.attention(h, o, o, attn_mask=m)
 
+    return attn_weights, hidden
+
+  def forward_inner(self, embedded_tokens, lengths):
+    attn_weights, hidden = self.encode(embedded_tokens, lengths)
+
     # Perform decoding
-    pred = self.decoder(hidden) # [Bx1]
+    pred = self.decoder(hidden)  # [Bx1]
 
     return pred
 
@@ -149,17 +154,18 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
       logits, _ = self(inputs, lengths)
       if self.num_targets == 1:
         # Binary classification
-        y_pred = F.sigmoid(logits)
+        y_pred = torch.sigmoid(logits)
         y_pred = torch.cat([1.0 - y_pred, y_pred], dim=1)
       else:
         # Multiclass classification
         y_pred = F.softmax(logits, dim=1)
       return y_pred
 
-  def get_embeddings(self, inputs, **kwargs):
+  def get_embeddings(self, inputs, lengths=None):
     with torch.inference_mode():
       e = self.embedding(inputs)
-      return e 
+      _, hidden = self.encode(e, lengths)
+      return hidden
   
   @overrides
   def captum_sub_model(self):
