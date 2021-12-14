@@ -2,7 +2,7 @@ from al.active_learner import ActiveLearner
 from al.uncertainty import MarginSampler
 from al.sampler import RandomSampler
 from al.kmeans import KMeansSampler
-from datasets import *
+from dataloaders import *
 from train import *
 
 

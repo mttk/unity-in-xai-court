@@ -6,6 +6,7 @@ from podium import Vocab, Field, LabelField, BucketIterator
 from podium.datasets import TabularDataset
 from podium.vectorizers import GloVe
 
+from datasets import load_dataset
 
 def load_embeddings(vocab, name="glove"):
     if name == "glove":
@@ -43,11 +44,14 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
 
     return iterator
 
+def load_imdb_rationale():
+    dataset = datasets.load_dataset('movie_rationales')
+    return dataset
 
 def load_imdb(
-    train_path="datasets/IMDB/train.csv",
-    valid_path="datasets/IMDB/dev.csv",
-    test_path="datasets/IMDB/test.csv",
+    train_path="data/IMDB/train.csv",
+    valid_path="data/IMDB/dev.csv",
+    test_path="data/IMDB/test.csv",
     max_size=20000,
 ):
     vocab = Vocab(max_size=max_size)
@@ -63,10 +67,9 @@ def load_imdb(
     train_dataset.finalize_fields()
     return (train_dataset, valid_dataset, test_dataset), vocab
 
-
-if __name__ == "__main__":
+def test_load_imdb():
     splits, vocab = load_imdb(
-        "datasets/IMDB/train.csv", "datasets/IMDB/dev.csv", "datasets/IMDB/test.csv"
+        "data/IMDB/train.csv", "data/IMDB/dev.csv", "data/IMDB/test.csv"
     )
     print(vocab)
     train, valid, test = splits
@@ -84,3 +87,9 @@ if __name__ == "__main__":
     print(vocab.reverse_numericalize(text[0]))
     print(length[0])
     print(vocab.get_padding_index())
+
+
+if __name__ == "__main__":
+    dataset = load_imdb_rationale()
+    print(dataset.keys())
+    print(dataset['train'][0])

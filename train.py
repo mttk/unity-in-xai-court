@@ -15,7 +15,7 @@ import torch.nn.functional as F
 from podium import BucketIterator
 
 from util import Config
-from datasets import *
+from dataloaders import *
 from model import *
 from interpret import *
 from correlation_measures import *
