@@ -6,6 +6,8 @@ from podium import Vocab, Field, LabelField, BucketIterator
 from podium.datasets import TabularDataset
 from podium.vectorizers import GloVe
 
+from eraser.eraser_utils import load_documents, load_datasets, annotations_from_jsonl, Annotation
+
 from datasets import load_dataset
 
 def load_embeddings(vocab, name="glove"):
@@ -44,8 +46,99 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
 
     return iterator
 
+
+class Instance:
+    def __init__(self, index, text, label, extras=None):
+        self.index = index
+        self.text = text
+        self.label = label
+        self.extras = extras
+        self.length = len(text) # text is already tokenized & filtered
+
+    def set_mask(self, masked_text, masked_labels):
+        # Set the masking as an attribute
+        self.masked_text = masked_text
+        self.masked_labels = masked_labels
+
+    def set_numericalized(self, indices, target):
+        self.numericalized_text = indices
+        self.numericalized_label = target
+        self.length = len(indices)
+
+    def __repr__(self):
+        return f"{self.index}: {self.length}, {self.label}"
+
+def generate_eraser_rationale_mask(tokens, evidences):
+    mask = torch.zeros(len(tokens)) # zeros for where you can attend to
+
+    any_evidence_left = False
+    for ev in evidences:
+        if ev.start_token > len(tokens) or ev.end_token > len(tokens): 
+            continue  # evidence out of span
+
+        if not any_evidence_left: any_evidence_left = True
+        # 1. Validate
+
+        assert ev.text == ' '.join(tokens[ev.start_token:ev.end_token]), "Texts dont match; did you filter some tokens?"
+
+        mask[ev.start_token:ev.end_token] = 1
+    return mask
+
+# Map this dataloader to podium Dataset classes ?
+def eraser_reader(data_root, conflate=False):
+    documents = load_documents(data_root)
+    train, val, test = load_datasets(data_root)
+
+    # Tokenizer is always str.split
+    # Maybe remove max_len
+
+    splits = []
+
+    for split in [train, val, test]:
+        examples = []
+        freqs = {}
+        class_map = {}
+        for idx, row in enumerate(split):
+            evidences = row.all_evidences()
+            if not evidences:
+                # Skip document that doesn't have any evidence; TODO: how many of those exist?
+                continue
+            # Get document id for the annotation
+            # If there are multiple document ids, this isn't the case we
+            #  are looking for here
+            (docid,) = set(ev.docid for ev in evidences)
+
+            document = documents[docid]
+            # obtain whole document tokens; flatten nested list
+            document_tokens = [token for sentence in document for token in sentence]
+
+            label = row.classification
+            # build frequencies
+            for token in document_tokens:
+                if token not in freqs: freqs[token] = 0
+                freqs[token] += 1
+
+            if label not in class_map:
+                class_map[label] = len(class_map)
+
+            rationale_mask = generate_eraser_rationale_mask(document_tokens, evidences)
+
+            extras = {
+                'evidence': row,
+                'rationale_mask': rationale_mask
+            }
+
+            instance = Instance(idx, document_tokens, label, extras)
+            examples.append(instance)
+        if not conflate:
+            splits.append((examples, class_map, freqs))
+        else:
+            splits.extend(examples)
+    return splits
+
+
 def load_imdb_rationale():
-    dataset = datasets.load_dataset('movie_rationales')
+    dataset = load_dataset('movie_rationales')
     return dataset
 
 def load_imdb(
@@ -90,6 +183,13 @@ def test_load_imdb():
 
 
 if __name__ == "__main__":
-    dataset = load_imdb_rationale()
-    print(dataset.keys())
-    print(dataset['train'][0])
+    conflate = True
+    if not conflate:
+        dataset_splits = eraser_reader('data/movies', conflate=conflate)
+        instances, _, _ = dataset_splits[0]
+    else:
+        instances = eraser_reader('data/movies', conflate=conflate)
+    print(len(instances))
+    print(instances[0])
+    print(instances[0].extras['rationale_mask'])
+    
