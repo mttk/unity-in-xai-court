@@ -265,7 +265,9 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
       batch_attributions = interpreter.interpret(x, lengths)
       batch_attributions = batch_attributions.detach().cpu().numpy()
 
-      attributions[k].extend(batch_attributions)
+      # attributions[k].extend(batch_attributions)
+      # Select only non-padding attributions
+      attributions[k].extend([a[:l] for a, l in zip(batch_attributions,lengths)])
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
