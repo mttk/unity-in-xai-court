@@ -54,5 +54,5 @@ if __name__ == "__main__":
     print(results)
     fmt = "%Y-%m-%d-%H-%M"
     fname = f"{dataset_name}-{sampler.name}-{datetime.now().strftime(fmt)}.pkl"
-    with open(f"results/{fname}.pkl", "wb") as f:
+    with open(f"results/{fname}", "wb") as f:
         pickle.dump(results, f)
