@@ -257,8 +257,9 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
     # print(x.shape)
-    rationale = batch.rationale.detach().cpu().numpy() # These are padded to the batch length
-    rationales.extend([r[:l] for r, l in zip(rationale, lengths)])
+    if use_rationales:
+      rationale = batch.rationale.detach().cpu().numpy() # These are padded to the batch length
+      rationales.extend([r[:l] for r, l in zip(rationale, lengths)])
 
     for k, interpreter in interpreters.items():
       # print(lengths.shape)
@@ -348,15 +349,16 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       # Compute importance scores for tokens on all batches of validation split
       # TODO: check if rationales exist in the dataset
-      use_rationales = True
+      use_rationales = True if args.data in ['IMDB-rationale'] else False
 
       result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
       # print(result_dict['rationales'])
       # Compute pairwise correlations between interpretability methods
       scores = pairwise_correlation(result_dict['attributions'], correlations)
 
-      rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
-      pprint(rationale_scores)
+      if use_rationales:
+        rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+        pprint(rationale_scores)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
