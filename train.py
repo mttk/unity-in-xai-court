@@ -244,7 +244,7 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
     # print(x.shape)
-    rationale = batch.rationale # These are padded to the batch length
+    rationale = batch.rationale.detach().cpu().numpy() # These are padded to the batch length
     rationales.extend([r[:l] for r, l in zip(rationale, lengths)])
 
     for k, interpreter in interpreters.items():
