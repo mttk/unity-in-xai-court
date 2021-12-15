@@ -20,6 +20,8 @@ from model import *
 from interpret import *
 from correlation_measures import *
 
+from sklearn.metrics import average_precision_score
+
 word_vector_files = {
   'glove' : os.path.expanduser('~/data/vectors/glove.840B.300d.txt')
 }
@@ -135,6 +137,17 @@ def initialize_model(args, meta):
   model = JWAttentionClassifier(args, meta)
 
   return model
+
+def rationale_correlation(importance_dictionary, rationales):
+  # Mean Average Precisions
+  importance_rationale_maps = {}
+
+  for method_name, importances in importance_dictionary.items():
+    aps = []
+    for inst_importance, inst_rationale in zip(importances, rationales):
+      aps.append(average_precision_score(inst_rationale, inst_importance))
+    importance_rationale_maps[method_name] = np.mean(aps)
+  return importance_rationale_maps
 
 def pairwise_correlation(importance_dictionary, correlation_measures):
   # importance_dictionary -> [method_name: list_of_values_for_instances]
@@ -340,6 +353,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       # Compute pairwise correlations between interpretability methods
       scores = pairwise_correlation(result_dict['attributions'], correlations)
 
+      rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+      pprint(rationale_scores)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
