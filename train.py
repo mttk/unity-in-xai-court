@@ -20,14 +20,22 @@ from model import *
 from interpret import *
 from correlation_measures import *
 
+from sklearn.metrics import average_precision_score
+
 word_vector_files = {
   'glove' : os.path.expanduser('~/data/vectors/glove.840B.300d.txt')
+}
+
+dataset_loaders = {
+  'IMDB': load_imdb,
+  'IMDB-rationale': load_imdb_rationale,
+  'TSE': load_tse
 }
 
 def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
-                        help='Data corpus: [IMDB]')
+                        help='Data corpus: [IMDB, IMDB-rationale, TSE]')
 
   parser.add_argument('--rnn_type', type=str, default='LSTM',
                         help='type of recurrent net [LSTM, GRU, MHA]')
@@ -130,6 +138,17 @@ def initialize_model(args, meta):
 
   return model
 
+def rationale_correlation(importance_dictionary, rationales):
+  # Mean Average Precisions
+  importance_rationale_maps = {}
+
+  for method_name, importances in importance_dictionary.items():
+    aps = []
+    for inst_importance, inst_rationale in zip(importances, rationales):
+      aps.append(average_precision_score(inst_rationale, inst_importance))
+    importance_rationale_maps[method_name] = np.mean(aps)
+  return importance_rationale_maps
+
 def pairwise_correlation(importance_dictionary, correlation_measures):
   # importance_dictionary -> [method_name: list_of_values_for_instances]
 
@@ -225,10 +244,11 @@ def train(model, data, optimizer, criterion, args, meta):
   }
   return result_dict
 
-def interpret_evaluate(interpreters, model, data, args, meta):
+def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=True):
   model.train()
 
   attributions = {k:[] for k in interpreters}
+  rationales = [] # Will be of variable length (slice based on lengths)
 
   for batch_num, batch in enumerate(data):
 
@@ -237,13 +257,17 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
     # print(x.shape)
+    rationale = batch.rationale.detach().cpu().numpy() # These are padded to the batch length
+    rationales.extend([r[:l] for r, l in zip(rationale, lengths)])
 
     for k, interpreter in interpreters.items():
       # print(lengths.shape)
       batch_attributions = interpreter.interpret(x, lengths)
       batch_attributions = batch_attributions.detach().cpu().numpy()
 
-      attributions[k].extend(batch_attributions)
+      # attributions[k].extend(batch_attributions)
+      # Select only non-padding attributions
+      attributions[k].extend([a[:l] for a, l in zip(batch_attributions,lengths)])
 
     print("[Batch]: {}/{} in {:.5f} seconds".format(
           batch_num, len(data), time.time() - t), end='\r', flush=True)
@@ -251,7 +275,8 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     model.zero_grad()
 
   result_dict = {
-    'attributions': attributions
+    'attributions': attributions,
+    'rationales': rationales
   }
 
   #for k, v in attributions.items():
@@ -322,10 +347,16 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       total_time = time.time()
 
       # Compute importance scores for tokens on all batches of validation split
-      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta)
+      # TODO: check if rationales exist in the dataset
+      use_rationales = True
+
+      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
+      # print(result_dict['rationales'])
       # Compute pairwise correlations between interpretability methods
       scores = pairwise_correlation(result_dict['attributions'], correlations)
 
+      rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+      pprint(rationale_scores)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
@@ -350,7 +381,14 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
 def main():
   args = make_parser()
-  (train, val, test), vocab = load_imdb()
+  dataloader = dataset_loaders[args.data]
+  splits, vocab = dataloader()
+  if len(splits) == 3:
+    train, val, test = splits
+  else:
+    train, test = splits
+    val = test # Change sometime later
+
   meta = Config()
   meta.num_labels = 2
   meta.num_tokens = len(vocab)

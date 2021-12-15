@@ -3,7 +3,7 @@ import torch
 
 import numpy as np
 from podium import Vocab, Field, LabelField, BucketIterator
-from podium.datasets import TabularDataset
+from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.vectorizers import GloVe
 
 from eraser.eraser_utils import load_documents, load_datasets, annotations_from_jsonl, Annotation
@@ -137,9 +137,85 @@ def eraser_reader(data_root, conflate=False):
     return splits
 
 
-def load_imdb_rationale():
-    dataset = load_dataset('movie_rationales')
-    return dataset
+class IMDBRationale(Dataset):
+
+    @staticmethod
+    def load_dataset_splits(fields, data_root='data/movies'):
+        documents = load_documents(data_root)
+        train, val, test = load_datasets(data_root)
+
+        fact = ExampleFactory(fields)
+
+        dataset_splits = {}
+
+        for name, split in zip(['train', 'val', 'test'], [train, val, test]):
+            split_examples = []
+            for idx, row in enumerate(split):
+                evidences = row.all_evidences()
+                if not evidences:
+                    # Skip document that doesn't have any evidence; TODO: how many of those exist?
+                    continue
+
+                (docid,) = set(ev.docid for ev in evidences)
+
+                document = documents[docid]
+                # obtain whole document tokens; flatten nested list
+                document_tokens = [token for sentence in document for token in sentence]
+
+                label = row.classification
+                rationale_mask = generate_eraser_rationale_mask(document_tokens, evidences)
+
+                example_dict = {
+                    'id': docid,
+                    'text': ' '.join(document_tokens),
+                    'label': label,
+                    'rationale': rationale_mask.numpy()
+                }
+
+                example = fact.from_dict(example_dict)
+                split_examples.append(example)
+            dataset_split = Dataset(**{"examples":split_examples, "fields":fields})
+            dataset_splits[name] = dataset_split
+        return dataset_splits
+
+    @staticmethod
+    def get_default_fields():
+        vocab = Vocab(max_size=20000)
+        fields = {
+            'id': Field("id", numericalizer=None),
+            'text': Field("text", numericalizer=vocab, include_lengths=True),
+            'rationale': Field("rationale", tokenizer=None, numericalizer=None), # shd be a boolean mask of same length as text
+            'label': LabelField("label"),
+        }
+        return fields, vocab
+
+
+def load_tse(train_path="data/TSE/train.csv", 
+             test_path="data/TSE/test.csv",
+             max_size=20000):
+
+    vocab = Vocab(max_size=max_size)
+    fields = [
+        Field("id", numericalizer=None),
+        Field("text", numericalizer=vocab, include_lengths=True),
+        Field("rationale", numericalizer=vocab),
+        LabelField("label"),
+    ]
+    train_dataset = TabularDataset(train_path, format="csv", fields=fields, skip_header=True)
+    test_dataset = TabularDataset(test_path, format="csv", fields=fields, skip_header=True)
+    train_dataset.finalize_fields()
+    return (train_dataset, test_dataset), vocab
+
+def load_imdb_rationale(
+    train_path="data/movies/train.csv",
+    valid_path="data/movies/dev.csv",
+    test_path="data/movies/test.csv",
+    max_size=20000
+):
+    fields, vocab = IMDBRationale.get_default_fields()
+    splits = IMDBRationale.load_dataset_splits(fields)
+    splits['train'].finalize_fields()
+    return list(splits.values()), vocab
 
 def load_imdb(
     train_path="data/IMDB/train.csv",
@@ -181,9 +257,7 @@ def test_load_imdb():
     print(length[0])
     print(vocab.get_padding_index())
 
-
-if __name__ == "__main__":
-    conflate = True
+def test_load_imdb_rationale(conflate=True):
     if not conflate:
         dataset_splits = eraser_reader('data/movies', conflate=conflate)
         instances, _, _ = dataset_splits[0]
@@ -192,4 +266,36 @@ if __name__ == "__main__":
     print(len(instances))
     print(instances[0])
     print(instances[0].extras['rationale_mask'])
-    
+
+def test_load_tse_rationale():
+    (tse_train, tse_test), vocab = load_tse()
+    print(tse_train[0])
+
+    device = torch.device("cpu")
+    train_iter = make_iterable(tse_train, device, batch_size=2)
+    batch = next(iter(train_iter))
+
+    print(batch)
+    text, length = batch.text
+
+    print(vocab.reverse_numericalize(text[0]))
+    print(length[0])
+    print(vocab.get_padding_index())
+
+
+if __name__ == "__main__":
+    (train, dev, test), vocab = load_imdb_rationale()
+    print(len(train), len(dev), len(test))
+    print(train[0].keys())
+
+    device = torch.device("cpu")
+    train_iter = make_iterable(train, device, batch_size=2)
+    batch = next(iter(train_iter))
+
+    print(batch)
+    text, length = batch.text
+    rationale = batch.rationale
+    print(vocab.reverse_numericalize(text[0]))
+    print(length[0])
+    print(vocab.get_padding_index())
+    print(rationale)
