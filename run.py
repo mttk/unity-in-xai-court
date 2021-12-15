@@ -1,13 +1,15 @@
+from al.sampler_mapping import get_al_sampler
 from al.active_learner import ActiveLearner
-from al.uncertainty import MarginSampler
-from al.sampler import RandomSampler
-from al.kmeans import KMeansSampler
 from dataloaders import *
 from train import *
+
+import pickle
+from datetime import datetime
 
 
 if __name__ == "__main__":
     args = make_parser()
+    dataset_name = "IMDB"
     (train, val, test), vocab = load_imdb()
 
     meta = Config()
@@ -29,33 +31,28 @@ if __name__ == "__main__":
         criterion = nn.CrossEntropyLoss()
         meta.num_targets = meta.num_labels
 
-    # Initialize model
-    model = initialize_model(args, meta)
-    model.to(device)
-
-    optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=args.l2)
-
-    # Construct interpreters
-    interpreters = {i: get_interpreter(i)(model) for i in args.interpreters}
-    print(f"Interpreters: {' '.join(list(interpreters.keys()))}")
-
     # Construct correlation metrics
     correlations = [get_corr(key)() for key in args.correlation_measures]
     print(f"Correlation measures: {correlations}")
 
-    sampler = KMeansSampler(
+    sampler_cls = get_al_sampler(args.al_sampler)
+    sampler = sampler_cls(
         dataset=train,
         batch_size=args.batch_size,
         device=device,
     )
     active_learner = ActiveLearner(sampler, train, val, device, args, meta)
 
-    active_learner.al_loop(
+    results = active_learner.al_loop(
         create_model_fn=initialize_model,
-        optimizer=optimizer,
         criterion=criterion,
         warm_start_size=args.warm_start_size,
         query_size=args.query_size,
-        interpreters=interpreters,
         correlations=correlations,
     )
+
+    print(results)
+    fmt = "%Y-%m-%d-%H-%M"
+    fname = f"{dataset_name}-{sampler.name}-{datetime.now().strftime(fmt)}.pkl"
+    with open(f"results/{fname}.pkl", "wb") as f:
+        pickle.dump(results, f)

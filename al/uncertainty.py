@@ -33,8 +33,8 @@ class MarginSampler(Sampler):
 class EntropySampler(Sampler):
     name = "entropy"
 
-    def query(self, query_size, unlabeled_inds, model, **kwargs):
-        probs = self._forward_iter(unlabeled_inds, model.predict_probs).cpu().numpy()
+    def query(self, query_size, unlab_inds, model, **kwargs):
+        probs = self._forward_iter(unlab_inds, model.predict_probs).cpu().numpy()
 
         # Clip for numerical stability.
         probs = np.clip(probs, a_min=1e-6, a_max=None)
@@ -42,4 +42,4 @@ class EntropySampler(Sampler):
 
         # Retrieve `query_size` instances with highest entropies.
         top_n = np.argpartition(entropies, -query_size)[-query_size:]
-        return unlabeled_inds[top_n]
+        return unlab_inds[top_n]

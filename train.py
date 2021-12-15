@@ -90,6 +90,9 @@ def make_parser():
                         help='File to restore model from')
 
   # Active learning arguments
+  parser.add_argument('--al-sampler', default="entropy",
+                        choices=["least_confident", "margin", "entropy", "kmeans"],
+                        help='Active learning sampler')
   parser.add_argument('--al-epochs', type=int, default=-1,
                         help='Number of AL epochs (-1 uses the whole train set)')
   parser.add_argument('--query-size', type=int, default=50,
