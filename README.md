@@ -1,3 +1,4 @@
 ## Unity in XAI court
 
-- Implement interpetability models (1. LSTM + attn)
+- Twitter sentiment analysis dataset sourced from: https://www.kaggle.com/c/tweet-sentiment-extraction/
+- Movie review dataset (IMDB annotated with rationales) sourced from eraser: https://www.eraserbenchmark.com/
