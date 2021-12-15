@@ -357,7 +357,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 def main():
   args = make_parser()
   dataloader = dataset_loaders[args.data]
-  splits, vocab = dataloder()
+  splits, vocab = dataloader()
   if len(splits) == 3:
     train, val, test = splits
   else:
