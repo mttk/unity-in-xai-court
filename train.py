@@ -351,7 +351,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       use_rationales = True
 
       result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
-      print(result_dict['rationales'])
+      # print(result_dict['rationales'])
       # Compute pairwise correlations between interpretability methods
       scores = pairwise_correlation(result_dict['attributions'], correlations)
 
