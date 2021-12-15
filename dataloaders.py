@@ -137,6 +137,23 @@ def eraser_reader(data_root, conflate=False):
     return splits
 
 
+def load_tse(train_path="data/TSE/train.csv", 
+             test_path="data/TSE/test.csv",
+             max_size=20000):
+
+    vocab = Vocab(max_size=max_size)
+    fields = [
+        Field("id", numericalizer=None, include_lengths=True),
+        Field("text", numericalizer=vocab, include_lengths=True),
+        Field("rationale", numericalizer=vocab, include_lengths=True),
+        LabelField("label"),
+    ]
+    train_dataset = TabularDataset(train_path, format="csv", fields=fields, skip_header=True)
+    test_dataset = TabularDataset(test_path, format="csv", fields=fields, skip_header=True)
+    train_dataset.finalize_fields()
+    return (train_dataset, test_dataset), vocab
+
+
 def load_imdb_rationale():
     dataset = load_dataset('movie_rationales')
     return dataset
@@ -181,9 +198,7 @@ def test_load_imdb():
     print(length[0])
     print(vocab.get_padding_index())
 
-
-if __name__ == "__main__":
-    conflate = True
+def test_load_imdb_rationale(conflate=True):
     if not conflate:
         dataset_splits = eraser_reader('data/movies', conflate=conflate)
         instances, _, _ = dataset_splits[0]
@@ -192,4 +207,19 @@ if __name__ == "__main__":
     print(len(instances))
     print(instances[0])
     print(instances[0].extras['rationale_mask'])
-    
+
+
+if __name__ == "__main__":
+    (tse_train, tse_test), vocab = load_tse()
+    print(tse_train[0])
+
+    device = torch.device("cpu")
+    train_iter = make_iterable(tse_train, device, batch_size=2)
+    batch = next(iter(train_iter))
+
+    print(batch)
+    text, length = batch.text
+
+    print(vocab.reverse_numericalize(text[0]))
+    print(length[0])
+    print(vocab.get_padding_index())

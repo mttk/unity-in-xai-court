@@ -17,7 +17,6 @@ from overrides import overrides
 import scipy.stats as stats
 from scipy.stats import kendalltau, spearmanr, pearsonr, weightedtau
 
-
 def unordered_cartesian_product(
     x: List[Any], y: List[Any]
 ) -> Iterator[List[Tuple[Any, Any]]]:
