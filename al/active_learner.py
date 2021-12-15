@@ -34,8 +34,6 @@ class ActiveLearner:
         interpreters,
         correlations,
     ):
-        score_list = []
-
         # Initialize label mask.
         lab_mask = np.full(len(self.train_set), False)
         # TODO: stratified warm start
@@ -44,30 +42,48 @@ class ActiveLearner:
         )
         lab_mask[random_inds] = True
 
-        al_epoch = 0
-        # Loop until all of the labels are used up.
-        while not lab_mask.sum() == lab_mask.size:
-            print(f"AL epoch: {al_epoch}")
+        al_epochs = self.args.al_epochs
+        if al_epochs == -1:
+            unlab_size = (~lab_mask).sum()
+            al_epochs = np.int(np.ceil(unlab_size / query_size)) + 1
+
+        results = {"train": [], "eval": [], "interpret": [], "agreement": []}
+        for al_epoch in range(1, al_epochs + 1):
+            print(f"AL epoch: {al_epoch}/{al_epochs}")
 
             # 1. train model with labeled data: fine-tune vs. re-train
             print(f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data...")
             model = create_model_fn(self.args, self.meta)
             model.to(self.device)
-            result_dict_train = self._train_model(model, lab_mask, optimizer, criterion)
+            model.train()
+            train_results = []
+            for epoch in range(1, self.args.epochs + 1):
+                print(f"Training epoch: {epoch}/{self.args.epochs}")
+                result_dict_train = self._train_model(
+                    model, lab_mask, optimizer, criterion
+                )
+                train_results.append(result_dict_train)
+            results["train"].append(train_results)
 
             # 2. evaluate model (test set)
             eval_result_dict = self._evaluate_model(model)
+            results["eval"].append(eval_result_dict)
 
             # 3. Retrieve active sample.
-            print("Retrieving AL sample...")
-            unlab_inds, *_ = np.where(~lab_mask)
-            selected_inds = self.sampler.query(
-                query_size=query_size,
-                unlab_inds=unlab_inds,
-                model=model,
-                lab_mask=lab_mask,
-            )
-            lab_mask[selected_inds] = True
+            if not lab_mask.all():
+                print("Retrieving AL sample...")
+                unlab_inds, *_ = np.where(~lab_mask)
+                if len(unlab_inds) <= query_size:
+                    selected_inds = unlab_inds
+                else:
+                    selected_inds = self.sampler.query(
+                        query_size=query_size,
+                        unlab_inds=unlab_inds,
+                        model=model,
+                        lab_mask=lab_mask,
+                    )
+
+                lab_mask[selected_inds] = True
 
             # 4. calculate intepretability metrics
             print("Calculating intepretability metrics...")
@@ -77,12 +93,12 @@ class ActiveLearner:
             scores = pairwise_correlation(
                 intepret_result_dict["attributions"], correlations
             )
-            score_list.append(scores)
             print("Interpretability scores", scores)
 
-            al_epoch += 1
+            results["interpret"] = intepret_result_dict
+            results["agreement"] = scores
 
-        return score_list
+        return results
 
     def _train_model(self, model, lab_mask, optimizer, criterion):
         model.train()
@@ -94,10 +110,10 @@ class ActiveLearner:
             train=True,
             indices=lab_mask,
         )
+        total_loss = 0.0
         accuracy, confusion_matrix = 0, np.zeros(
             (self.meta.num_labels, self.meta.num_labels), dtype=int
         )
-        total_loss = 0.0
 
         for batch_num, batch in enumerate(data):
 
@@ -131,7 +147,9 @@ class ActiveLearner:
                 end="\r",
                 flush=True,
             )
-        result_dict = {"loss": total_loss / len(data) / data.batch_size}
+
+        loss = total_loss / len(data) / data.batch_size
+        result_dict = {"loss": loss}
         return result_dict
 
     def _evaluate_model(self, model):
@@ -181,7 +199,7 @@ class ActiveLearner:
             )
         )
         print(confusion_matrix)
-        result_dict = {"loss": 0.0}
+        result_dict = {"accuracy": accuracy}
         return result_dict
 
     @staticmethod
