@@ -356,8 +356,9 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       # Compute pairwise correlations between interpretability methods
       scores = pairwise_correlation(result_dict['attributions'], correlations)
 
-      rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
-      pprint(rationale_scores)
+      if use_rationales:
+        rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+        pprint(rationale_scores)
 
       print(f"Epoch={epoch}, evaluating on validation set:")
       result_dict = evaluate(model, val_iter, args, meta)
