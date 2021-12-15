@@ -260,7 +260,7 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
     model.zero_grad()
 
   result_dict = {
-    'attributions': attributions
+    'attributions': attributions,
     'rationales': rationales
   }
 
