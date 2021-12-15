@@ -348,7 +348,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       # Compute importance scores for tokens on all batches of validation split
       # TODO: check if rationales exist in the dataset
-      use_rationales = True
+      use_rationales = True if args.data in ['IMDB-rationale'] else False
 
       result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
       # print(result_dict['rationales'])
