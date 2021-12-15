@@ -231,10 +231,11 @@ def train(model, data, optimizer, criterion, args, meta):
   }
   return result_dict
 
-def interpret_evaluate(interpreters, model, data, args, meta):
+def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=True):
   model.train()
 
   attributions = {k:[] for k in interpreters}
+  rationales = [] # Will be of variable length (slice based on lengths)
 
   for batch_num, batch in enumerate(data):
 
@@ -243,6 +244,8 @@ def interpret_evaluate(interpreters, model, data, args, meta):
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
     # print(x.shape)
+    rationale = batch.rationale # These are padded to the batch length
+    rationales.extend([r[:l] for r, l in zip(rationale, lengths)])
 
     for k, interpreter in interpreters.items():
       # print(lengths.shape)
@@ -258,6 +261,7 @@ def interpret_evaluate(interpreters, model, data, args, meta):
 
   result_dict = {
     'attributions': attributions
+    'rationales': rationales
   }
 
   #for k, v in attributions.items():
@@ -328,7 +332,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       total_time = time.time()
 
       # Compute importance scores for tokens on all batches of validation split
-      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta)
+      # TODO: check if rationales exist in the dataset
+      use_rationales = True
+
+      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
+      print(result_dict['rationales'])
       # Compute pairwise correlations between interpretability methods
       scores = pairwise_correlation(result_dict['attributions'], correlations)
 
