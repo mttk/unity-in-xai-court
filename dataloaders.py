@@ -169,7 +169,7 @@ class IMDBRationale(Dataset):
                     'id': docid,
                     'text': ' '.join(document_tokens),
                     'label': label,
-                    'rationale': list(rationale_mask.numpy())
+                    'rationale': rationale_mask.numpy()
                 }
 
                 example = fact.from_dict(example_dict)
@@ -212,9 +212,9 @@ def load_imdb_rationale(
     test_path="data/movies/test.csv",
     max_size=20000
 ):
-    # Try loading it with podium
     fields, vocab = IMDBRationale.get_default_fields()
     splits = IMDBRationale.load_dataset_splits(fields)
+    splits['train'].finalize_fields()
     return list(splits.values()), vocab
 
 def load_imdb(
@@ -285,4 +285,17 @@ def test_load_tse_rationale():
 
 if __name__ == "__main__":
     (train, dev, test), vocab = load_imdb_rationale()
-    print(train[0])
+    print(len(train), len(dev), len(test))
+    print(train[0].keys())
+
+    device = torch.device("cpu")
+    train_iter = make_iterable(train, device, batch_size=2)
+    batch = next(iter(train_iter))
+
+    print(batch)
+    text, length = batch.text
+    rationale = batch.rationale
+    print(vocab.reverse_numericalize(text[0]))
+    print(length[0])
+    print(vocab.get_padding_index())
+    print(rationale)

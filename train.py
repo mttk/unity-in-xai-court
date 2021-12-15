@@ -24,10 +24,16 @@ word_vector_files = {
   'glove' : os.path.expanduser('~/data/vectors/glove.840B.300d.txt')
 }
 
+dataset_loaders = {
+  'IMDB': load_imdb,
+  'IMDB-rationale': load_imdb_rationale,
+  'TSE': load_tse
+}
+
 def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
-                        help='Data corpus: [IMDB]')
+                        help='Data corpus: [IMDB, IMDB-rationale, TSE]')
 
   parser.add_argument('--rnn_type', type=str, default='LSTM',
                         help='type of recurrent net [LSTM, GRU, MHA]')
@@ -350,7 +356,14 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
 def main():
   args = make_parser()
-  (train, val, test), vocab = load_imdb()
+  dataloader = dataset_loaders(args.data)
+  splits, vocab = dataloder()
+  if len(splits) == 3:
+    train, val, test = splits
+  else:
+    train, test = splits
+    val = test # Change sometime later
+
   meta = Config()
   meta.num_labels = 2
   meta.num_tokens = len(vocab)
