@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import os
 import math
 
@@ -9,6 +10,21 @@ import numpy as np
 from overrides import overrides
 
 from util import create_pad_mask_from_length
+
+
+class AcquisitionModel:
+  @abstractmethod
+  def get_encoder_dim(self, **kwargs):
+    pass
+
+  @abstractmethod 
+  def get_encoder(self, **kwargs):
+    pass
+  
+  @abstractmethod
+  def predict_probs(self, **kwargs):
+    pass
+
 
 # Taken from court-of-xai
 # Captum expects the input to the model you are interpreting to be one or more
@@ -48,13 +64,14 @@ class _CaptumSubModel(torch.nn.Module):
 
   def forward(self, word_embeddings, lengths=None):
     #print(lengths.shape)
-    return self.model.forward_inner(
+    pred, _ = self.model.forward_inner(
         embedded_tokens=word_embeddings,
         lengths=lengths,
     )
+    return pred
 
 
-class JWAttentionClassifier(nn.Module, CaptumCompatible):
+class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
   def __init__(self, config, meta):
     super(JWAttentionClassifier, self).__init__()
     # Store vocab for interpretability methods
@@ -74,16 +91,16 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
     # Initialize network
     self.bidirectional = config.bi
     dimension_multiplier = 1 + sum([config.bi])
-    attention_dim = dimension_multiplier * config.hidden_dim
+    self.attention_dim = dimension_multiplier * config.hidden_dim
 
     self.num_layers = config.num_layers
     self.rnn = nn.LSTM(config.embedding_dim, config.hidden_dim, config.num_layers, 
                         dropout=config.dropout, bidirectional=config.bi)
-    self.attention = AdditiveAttention(query_dim=attention_dim,
-                                       key_dim=attention_dim,
-                                       value_dim=attention_dim)
+    self.attention = AdditiveAttention(query_dim=self.attention_dim,
+                                       key_dim=self.attention_dim,
+                                       value_dim=self.attention_dim)
 
-    self.decoder = nn.Linear(attention_dim, meta.num_targets)
+    self.decoder = nn.Linear(self.attention_dim, meta.num_targets)
 
   def encode(self, embedded_tokens, lengths):
     # For captum compatibility: obtain embeddings as inputs,
@@ -133,18 +150,19 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
     # Perform decoding
     pred = self.decoder(hidden)  # [Bx1]
 
-    return pred
+    return pred, hidden
 
   def forward(self, inputs, lengths=None):
     # inputs = [BxT]
     e = self.embedding(inputs) # [BxTxE]
     # e = [BxTxE]
 
-    pred = self.forward_inner(e, lengths)
+    pred, hidden = self.forward_inner(e, lengths)
 
     # For additional return arguments
     return_dict = {
-        'embeddings': e
+        'embeddings': e,
+        'encoded': hidden,
     }
 
     return pred, return_dict
@@ -161,7 +179,10 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible):
         y_pred = F.softmax(logits, dim=1)
       return y_pred
 
-  def get_embeddings(self, inputs, lengths=None):
+  def get_encoder_dim(self):
+    return self.attention_dim
+
+  def get_encoded(self, inputs, lengths=None):
     with torch.inference_mode():
       e = self.embedding(inputs)
       _, hidden = self.encode(e, lengths)

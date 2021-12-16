@@ -107,6 +107,7 @@ class ActiveLearner:
                         model=model,
                         lab_mask=lab_mask,
                         num_labels=self.meta.num_labels,
+                        criterion=criterion,
                     )
 
                 lab_mask[selected_inds] = True

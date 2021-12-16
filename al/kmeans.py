@@ -8,7 +8,7 @@ class KMeansSampler(Sampler):
     name = "k_means"
 
     def query(self, query_size, unlab_inds, model, **kwargs):
-        embeddings = self._forward_iter(unlab_inds, model.get_embeddings).cpu().numpy()
+        embeddings = self._forward_iter(unlab_inds, model.get_encoded).cpu().numpy()
         kmeans = KMeans(n_clusters=query_size)
         kmeans.fit(embeddings)
 
