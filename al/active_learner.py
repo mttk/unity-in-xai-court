@@ -80,7 +80,12 @@ class ActiveLearner:
                 # c) Calculate intepretability metrics
                 print("Calculating intepretability metrics...")
                 intepret_result_dict = interpret_evaluate(
-                    interpreters, model, self.test_iter, self.args, self.meta
+                    interpreters,
+                    model,
+                    self.test_iter,
+                    self.args,
+                    self.meta,
+                    use_rationales=False,
                 )
                 scores = pairwise_correlation(
                     intepret_result_dict["attributions"], correlations
@@ -95,11 +100,13 @@ class ActiveLearner:
                 if len(unlab_inds) <= query_size:
                     selected_inds = unlab_inds
                 else:
+                    model.eval()
                     selected_inds = self.sampler.query(
                         query_size=query_size,
                         unlab_inds=unlab_inds,
                         model=model,
                         lab_mask=lab_mask,
+                        num_labels=self.meta.num_labels,
                     )
 
                 lab_mask[selected_inds] = True

@@ -99,7 +99,15 @@ def make_parser():
 
   # Active learning arguments
   parser.add_argument('--al-sampler', default="entropy",
-                        choices=["least_confident", "margin", "entropy", "kmeans"],
+                        choices=[
+                          "least_confident",
+                          "margin",
+                          "entropy",
+                          "kmeans",
+                          "least_confident_dropout",
+                          "margin_dropout",
+                          "entropy_dropout",
+                        ],
                         help='Active learning sampler')
   parser.add_argument('--al-epochs', type=int, default=-1,
                         help='Number of AL epochs (-1 uses the whole train set)')

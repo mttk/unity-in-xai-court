@@ -32,10 +32,32 @@ class Sampler(ABC):
             out = forward_fn(x, lengths=lengths)
             out_list.append(out)
 
-        print(out_list[0].shape, out_list[1].shape)
         res = torch.cat(out_list)
-        print("Result shape:", res.shape)
         return res
+
+    def _predict_probs_dropout(self, model, n_drop, indices, num_labels):
+        model.train()
+
+        probs = torch.zeros([len(indices), num_labels]).to(self.device)
+
+        iter = make_iterable(
+            self.dataset, self.device, batch_size=self.batch_size, indices=indices
+        )
+
+        # Dropout approximation for output probs.
+        for _ in range(n_drop):
+            index = 0
+            for batch in iter:
+                x, lengths = batch.text
+                probs_i = model.predict_probs(x, lengths=lengths)
+                start = index
+                end = start + x.shape[0]
+                probs[start:end] += probs_i
+                index = end
+
+        probs /= n_drop
+
+        return probs
 
 
 class RandomSampler(Sampler):
