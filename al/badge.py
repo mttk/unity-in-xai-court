@@ -65,5 +65,5 @@ class BADGE(Sampler):
             model, criterion, unlab_inds, num_targets, grad_embedding_type="linear"
         )
         grad_embedding = grad_embedding.cpu().detach().numpy()
-        chosen = init_centers(grad_embedding, query_size, self.device)
-        return chosen
+        top_n = init_centers(grad_embedding, query_size, self.device)
+        return unlab_inds[top_n]
