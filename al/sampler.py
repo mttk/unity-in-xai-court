@@ -73,7 +73,7 @@ class Sampler(ABC):
         )
 
         encoder_dim = model.get_encoder_dim()
-        
+
         # Create the tensor to return depending on the grad_embedding_type, which can have bias only,
         # linear only, or bias and linear.
         if grad_embedding_type == "bias":
@@ -99,22 +99,24 @@ class Sampler(ABC):
             start = index
             end = start + x.shape[0]
 
-            out, return_dict = model(x, lengths=lengths, freeze=True)
-            l1 = return_dict["hidden"]
+            logits, return_dict = model(x, lengths=lengths)
+            l1 = return_dict["encoded"]
             if num_targets == 1:
-                y_pred = torch.sigmoid(out)
+                y_pred = torch.sigmoid(logits)
                 y_pred = torch.cat([1.0 - y_pred, y_pred], dim=1).to(self.device)
 
-            y_pred = out.max(1)[1]
+            y_pred = logits.max(1)[1]
 
-            # Calculate loss as a sum, allowing for the calculation of
-            # the gradients using autograd wrt the outputs (bias gradients).
-            loss = criterion(out, y_pred, reduction="sum")
-            l0_grads = torch.autograd.grad(loss, out)[0]
+            if logits.shape[-1] == 1:
+                # Binary cross entropy, cast labels to float
+                y_pred = y_pred.type(torch.float)
 
-            # Calculate the linear layer gradients as well if needed.
+            loss = criterion(logits.squeeze(), y_pred)
+            l0_grads = torch.autograd.grad(loss, logits)[0]
+
+            # Calculate the linear layer gradients if needed.
             if grad_embedding_type != "bias":
-                l0_expand = torch.repeat_interleave(l0_grads, hidden_dim, dim=1)
+                l0_expand = torch.repeat_interleave(l0_grads, encoder_dim, dim=1)
                 l1_grads = l0_expand * l1.repeat(1, num_targets)
 
             # Populate embedding tensor according to the supplied argument.

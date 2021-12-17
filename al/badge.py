@@ -58,9 +58,12 @@ class BADGE(Sampler):
     k-means++ on these loss gradients.
     """
 
-    def query(self, query_size, unlab_inds, model, criterion, **kwargs):
+    name = "badge"
+
+    def query(self, query_size, unlab_inds, model, criterion, num_targets, **kwargs):
         grad_embedding = self._get_grad_embedding(
-            model, criterion, unlab_inds, grad_embedding_type="linear"
+            model, criterion, unlab_inds, num_targets, grad_embedding_type="linear"
         )
-        chosen = init_centers(grad_embedding.cpu().numpy(), query_size, self.device)
+        grad_embedding = grad_embedding.cpu().detach().numpy()
+        chosen = init_centers(grad_embedding, query_size, self.device)
         return chosen

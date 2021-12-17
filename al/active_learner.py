@@ -107,6 +107,7 @@ class ActiveLearner:
                         model=model,
                         lab_mask=lab_mask,
                         num_labels=self.meta.num_labels,
+                        num_targets=self.meta.num_targets,
                         criterion=criterion,
                     )
 
