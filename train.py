@@ -108,6 +108,7 @@ def make_parser():
                           "margin_dropout",
                           "entropy_dropout",
                           "badge",
+                          "core_set",
                         ],
                         help='Active learning sampler')
   parser.add_argument('--al-epochs', type=int, default=-1,

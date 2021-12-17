@@ -8,6 +8,7 @@ from al.uncertainty import (
     MarginDropoutSampler,
     MarginSampler,
 )
+from al.core_set import CoreSet
 from al.badge import BADGE
 
 
@@ -21,6 +22,7 @@ AL_SAMPLERS = {
     MarginDropoutSampler.name: MarginDropoutSampler,
     EntropyDropoutSampler.name: EntropyDropoutSampler,
     BADGE.name: BADGE,
+    CoreSet.name: CoreSet,
 }
 
 

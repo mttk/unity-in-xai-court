@@ -96,6 +96,7 @@ class ActiveLearner:
             # 2) Retrieve active sample.
             if not lab_mask.all():
                 print("Retrieving AL sample...")
+                lab_inds, *_ = np.where(lab_mask)
                 unlab_inds, *_ = np.where(~lab_mask)
                 if len(unlab_inds) <= query_size:
                     selected_inds = unlab_inds
@@ -104,6 +105,7 @@ class ActiveLearner:
                     selected_inds = self.sampler.query(
                         query_size=query_size,
                         unlab_inds=unlab_inds,
+                        lab_inds=lab_inds,
                         model=model,
                         lab_mask=lab_mask,
                         num_labels=self.meta.num_labels,
@@ -112,6 +114,7 @@ class ActiveLearner:
                     )
 
                 lab_mask[selected_inds] = True
+                print(f"{len(selected_inds)} data points selected.")
 
             # 3) Store results.
             results["train"].append(train_results)
