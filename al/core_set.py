@@ -9,32 +9,11 @@ class CoreSet(Sampler):
     approach using coreset selection. The embedding of each example is computed by the network’s
     penultimate layer and the samples at each round are selected using a greedy furthest-first
     traversal conditioned on all labeled examples.
-
-    Parameters
-    ----------
-    labeled_dataset: torch.utils.data.Dataset
-        The labeled training dataset
-    unlabeled_dataset: torch.utils.data.Dataset
-        The unlabeled pool dataset
-    net: torch.nn.Module
-        The deep model to use
-    nclasses: int
-        Number of unique values for the target
-    args: dict
-        Specify additional parameters
-
-        - **batch_size**: The batch size used internally for torch.utils.data.DataLoader objects. (int, optional)
-        - **device**: The device to be used for computation. PyTorch constructs are transferred to this device. Usually is one of 'cuda' or 'cpu'. (string, optional)
-        - **loss**: The loss function to be used in computations. (typing.Callable[[torch.Tensor, torch.Tensor], torch.Tensor], optional)
     """
 
     name = "core_set"
 
     def furthest_first(self, unlabeled_embeddings, labeled_embeddings, n):
-
-        unlabeled_embeddings = unlabeled_embeddings.to(self.device)
-        labeled_embeddings = labeled_embeddings.to(self.device)
-
         m = unlabeled_embeddings.shape[0]
         if labeled_embeddings.shape[0] == 0:
             min_dist = torch.tile(float("inf"), m)
@@ -55,12 +34,8 @@ class CoreSet(Sampler):
         return idxs
 
     def query(self, query_size, unlab_inds, lab_inds, model, **kwargs):
-        embedding_unlabeled = (
-            self._forward_iter(unlab_inds, model.get_encoded)
-        )
-        embedding_labeled = (
-            self._forward_iter(lab_inds, model.get_encoded)
-        )
+        embedding_unlabeled = self._forward_iter(unlab_inds, model.get_encoded)
+        embedding_labeled = self._forward_iter(lab_inds, model.get_encoded)
         top_n = self.furthest_first(embedding_unlabeled, embedding_labeled, query_size)
 
         return unlab_inds[top_n]
