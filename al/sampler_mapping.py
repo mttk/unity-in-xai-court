@@ -1,3 +1,4 @@
+from al.bald.batch_bald import BatchBALDDropout
 from al.kmeans import KMeansSampler
 from al.sampler import RandomSampler
 from al.uncertainty import (
@@ -23,6 +24,7 @@ AL_SAMPLERS = {
     EntropyDropoutSampler.name: EntropyDropoutSampler,
     BADGE.name: BADGE,
     CoreSet.name: CoreSet,
+    BatchBALDDropout.name: BatchBALDDropout,
 }
 
 
