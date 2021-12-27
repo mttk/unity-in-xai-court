@@ -100,6 +100,7 @@ def make_parser():
   # Active learning arguments
   parser.add_argument('--al-sampler', default="entropy",
                         choices=[
+                          "random",
                           "least_confident",
                           "margin",
                           "entropy",

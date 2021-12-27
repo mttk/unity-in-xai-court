@@ -8,7 +8,6 @@ from podium.vectorizers import GloVe
 
 from eraser.eraser_utils import load_documents, load_datasets, annotations_from_jsonl, Annotation
 
-from datasets import load_dataset
 
 def load_embeddings(vocab, name="glove"):
     if name == "glove":
