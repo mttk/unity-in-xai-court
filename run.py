@@ -4,10 +4,12 @@ from dataloaders import *
 from train import *
 
 import pickle
+import logging
 from datetime import datetime
 
 
 if __name__ == "__main__":
+
     args = make_parser()
     dataset_name = "IMDB"
     (train, val, test), vocab = load_imdb()
@@ -33,7 +35,6 @@ if __name__ == "__main__":
 
     # Construct correlation metrics
     correlations = [get_corr(key)() for key in args.correlation_measures]
-    print(f"Correlation measures: {correlations}")
 
     sampler_cls = get_al_sampler(args.al_sampler)
     sampler = sampler_cls(
@@ -43,6 +44,17 @@ if __name__ == "__main__":
     )
     active_learner = ActiveLearner(sampler, train, val, device, args, meta)
 
+    # Initialize logging
+    fmt = "%Y-%m-%d-%H-%M"
+    start_time = fname = datetime.now().strftime(fmt)
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[
+            logging.FileHandler(f"log/{dataset_name}-{sampler.name}-{start_time}.log"),
+            logging.StreamHandler(),
+        ],
+    )
+
     results = active_learner.al_loop(
         create_model_fn=initialize_model,
         criterion=criterion,
@@ -51,8 +63,7 @@ if __name__ == "__main__":
         correlations=correlations,
     )
 
-    print(results)
-    fmt = "%Y-%m-%d-%H-%M"
-    fname = f"{dataset_name}-{sampler.name}-{datetime.now().strftime(fmt)}.pkl"
+    logging.info(results)
+    fname = f"{dataset_name}-{sampler.name}-{start_time}.pkl"
     with open(f"results/{fname}", "wb") as f:
         pickle.dump(results, f)

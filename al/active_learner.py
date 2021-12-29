@@ -1,10 +1,10 @@
 import numpy as np
+import logging
 import torch
 import time
 
 from train import *
 from dataloaders import *
-from al.uncertainty import MarginSampler
 
 
 class ActiveLearner:
@@ -47,11 +47,13 @@ class ActiveLearner:
 
         results = {"train": [], "eval": [], "agreement": [], "labeled": []}
         for al_epoch in range(1, al_epochs + 1):
-            print(f"AL epoch: {al_epoch}/{al_epochs}")
+            logging.info(f"AL epoch: {al_epoch}/{al_epochs}")
             results["labeled"].append(lab_mask.sum())
 
             # 1) Train model with labeled data: fine-tune vs. re-train
-            print(f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data...")
+            logging.info(
+                f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data..."
+            )
             # Create new model: re-train scenario.
             model = create_model_fn(self.args, self.meta)
             model.to(self.device)
@@ -66,7 +68,7 @@ class ActiveLearner:
             eval_results = []
             agreement_results = []
             for epoch in range(1, self.args.epochs + 1):
-                print(f"Training epoch: {epoch}/{self.args.epochs}")
+                logging.info(f"Training epoch: {epoch}/{self.args.epochs}")
                 # a) Train for one epoch
                 result_dict_train = self._train_model(
                     model, lab_mask, optimizer, criterion
@@ -78,7 +80,7 @@ class ActiveLearner:
                 eval_results.append(eval_result_dict)
 
                 # c) Calculate intepretability metrics
-                print("Calculating intepretability metrics...")
+                logging.info("Calculating intepretability metrics...")
                 intepret_result_dict = interpret_evaluate(
                     interpreters,
                     model,
@@ -91,11 +93,11 @@ class ActiveLearner:
                     intepret_result_dict["attributions"], correlations
                 )
                 agreement_results.append(scores)
-                print("Interpretability scores", scores)
+                logging.info("Interpretability scores", scores)
 
             # 2) Retrieve active sample.
             if not lab_mask.all():
-                print("Retrieving AL sample...")
+                logging.info("Retrieving AL sample...")
                 lab_inds, *_ = np.where(lab_mask)
                 unlab_inds, *_ = np.where(~lab_mask)
                 if len(unlab_inds) <= query_size:
@@ -114,7 +116,7 @@ class ActiveLearner:
                     )
 
                 lab_mask[selected_inds] = True
-                print(f"{len(selected_inds)} data points selected.")
+                logging.info(f"{len(selected_inds)} data points selected.")
 
             # 3) Store results.
             results["train"].append(train_results)
@@ -216,15 +218,15 @@ class ActiveLearner:
                     flush=True,
                 )
 
-        print(
+        logging.info(
             "[Accuracy]: {}/{} : {:.3f}%".format(
                 accuracy,
                 len(self.test_set),
                 accuracy / len(self.test_set) * 100,
             )
         )
-        print(confusion_matrix)
-        result_dict = {"accuracy": accuracy / len(self.test_set) * 100}
+        logging.info(confusion_matrix)
+        result_dict = {"accuracy": accuracy / len(self.test_set)}
         return result_dict
 
     @staticmethod
