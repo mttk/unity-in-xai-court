@@ -408,8 +408,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
       for instance_index in worst_agreement:
         print(instance_index)
-        print(train_dataset.instances[instance_index])
-        print(per_instance_agreement[instance_index])
+        print(train_dataset[instance_index[0]])
+        print(per_instance_agreement[instance_index[0]])
         print()
       sys.exit(-1)
 
