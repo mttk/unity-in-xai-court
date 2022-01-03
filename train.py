@@ -407,7 +407,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
       worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
       for instance_index in worst_agreement:
-        print(train_dataset[instance_index])
+        print(instance_index)
+        print(train_dataset.instances[instance_index])
         print(per_instance_agreement[instance_index])
         print()
       sys.exit(-1)
