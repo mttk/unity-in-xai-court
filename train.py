@@ -421,9 +421,9 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
       min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
       worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
-      worst_agreement = correct_for_missing(worst_agreement, indices)
+      worst_agreement = correct_for_missing(worst_agreement, inst_mask)
       # Mask out the worst indices
-      indices[worst_agreement] = False
+      inst_mask[worst_agreement] = False
 
       #sys.exit(-1)
 
