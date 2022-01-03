@@ -89,7 +89,7 @@ class ActiveLearner:
                     self.meta,
                     use_rationales=False,
                 )
-                scores = pairwise_correlation(
+                scores, _ = pairwise_correlation(
                     intepret_result_dict["attributions"], correlations
                 )
                 agreement_results.append(scores)

@@ -216,15 +216,25 @@ def load_imdb_rationale(
     splits['train'].finalize_fields()
     return list(splits.values()), vocab
 
+class MaxLenHook():
+    def __init__(self, max_len):
+        self.max_len = max_len
+
+    def __call__(self, raw, tokenized):
+        return raw, tokenized[:self.max_len]
+
 def load_imdb(
     train_path="data/IMDB/train.csv",
     valid_path="data/IMDB/dev.csv",
     test_path="data/IMDB/test.csv",
     max_size=20000,
+    max_len=200
 ):
+
     vocab = Vocab(max_size=max_size)
     fields = [
-        Field("text", numericalizer=vocab, include_lengths=True),
+        Field("text", numericalizer=vocab, include_lengths=True,
+               posttokenize_hooks=[MaxLenHook(max_len)]),
         LabelField("label"),
     ]
 
