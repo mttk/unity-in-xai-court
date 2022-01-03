@@ -402,6 +402,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
 
       per_instance_agreement = list(zip(*train_raw_correlations.values()))
+      print(len(train_iter), len(train_iter_noshuf))
       print(len(per_instance_agreement), per_instance_agreement[0])
 
 
