@@ -147,6 +147,14 @@ def update_stats(accuracy, confusion_matrix, logits, y):
   return accuracy + correct, confusion_matrix
 
 
+def correct_for_missing(indices, mask):
+  # Since some instances are missing from the dataset, we need 
+  # to align the indices wrt masked positions
+  offset = np.cumsum(~mask)
+  aligned_indices = [i - offset[i] for i in indices]
+  return aligned_indices
+
+
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
@@ -333,7 +341,6 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
         model.parameters(),
         args.lr, weight_decay=args.l2)
 
-  train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True)
   train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
   val_iter = make_iterable(val_dataset, device, batch_size=args.batch_size)
   test_iter = make_iterable(test_dataset, device, batch_size=args.batch_size)
@@ -358,7 +365,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   use_rationales = True if args.data in ['IMDB-rationale'] else False
 
   if args.ul_epochs == -1:
-    ul_epochs = len(train_iter) * args.batch_size // args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
+    ul_epochs = len(train_dataset) // args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
   else:
     ul_epochs = args.ul_epochs
 
@@ -369,8 +376,13 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
     best_valid_epoch = 0
     best_model = copy.deepcopy(model)
 
+    inst_mask = np.full(len(train_dataset), True) # Instances to use for training
+
     for ul_epoch in range(1, ul_epochs + 1):
       # Reduce dataset post-train loop
+
+      indices, *_ = np.where(inst_mask)
+      train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True, indices=indices)
 
       for epoch in range(1, args.epochs + 1):
 
@@ -404,25 +416,14 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       for k in train_raw_correlations:
         per_instance_agreement = train_raw_correlations[k]
 
-      print(len(train_iter) * args.batch_size, len(train_iter_noshuf) * args.batch_size)
-      print(len(per_instance_agreement), per_instance_agreement[0])
+
       min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
       worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
-      print("Best agreement", per_instance_agreement[min_agreement_indices[-1]])
-      print(worst_agreement)
+      worst_agreement = correct_for_missing(worst_agreement)
+      # Mask out the worst indices
+      indices[worst_agreement] = False
 
-      for instance_index in worst_agreement:
-        print(instance_index)
-        print(train_dataset[int(instance_index)])
-        print(per_instance_agreement[instance_index])
-        print()
-
-      inst_0, _ = next(iter(train_iter_noshuf)).text
-      print(inst_0)
-      print(meta.vocab.reverse_numericalize(inst_0[0]))
-      print(train_dataset[0])
-
-      sys.exit(-1)
+      #sys.exit(-1)
 
 
   except KeyboardInterrupt:
