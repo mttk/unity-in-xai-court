@@ -151,9 +151,7 @@ def correct_for_missing(indices, mask):
   # Since some instances are missing from the dataset, we need 
   # to align the indices wrt masked positions
   offset = np.cumsum(~mask)
-  print(offset)
   aligned_indices = [i - offset[i] for i in indices]
-  print(aligned_indices)
   return aligned_indices
 
 
