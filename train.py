@@ -416,6 +416,11 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
         print(train_dataset[int(instance_index)])
         print(per_instance_agreement[instance_index])
         print()
+
+      inst_0 = next(iter(train_iter_noshuf)).text
+      print(meta.vocab.reverse_numericalize(inst_0[0]))
+      print(train_dataset[0])
+
       sys.exit(-1)
 
 
