@@ -66,6 +66,7 @@ def make_parser():
   parser.add_argument('--freeze', action='store_true',
                         help='Freeze embeddings')
 
+  # Interpreters & corr measures
   parser.add_argument("--interpreters", nargs="+",
                       default=["deeplift", "grad-shap"], choices=["deeplift", "grad-shap", "deeplift-shap", "int-grad", "lime"],
                       help="Specify a list of interpreters.")
@@ -96,6 +97,10 @@ def make_parser():
                         help='Folder to store tensorboard logs in')
   parser.add_argument('--restore', type=str, default='',
                         help='File to restore model from')
+
+  # Model "unlearning" -- removing train instances with largest disagreement
+  parser.add_argument('--ul-epochs', type=int, default=-1,
+                        help='Number of UL epochs (-1 uses the whole train set)'))
 
   # Active learning arguments
   parser.add_argument('--al-sampler', default="entropy",
@@ -168,22 +173,26 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
   K = len(correlation_measures)
 
   scores = {} # pairwise for each correlation
+  raw_correlations = {}
 
   for corr_idx, corr in enumerate(correlation_measures):
     for i, k_i in enumerate(importance_dictionary):
       for j, k_j in enumerate(importance_dictionary):
-        corrs = [] 
+        corrs = []
 
         if k_i == k_j or (k_i, k_j) in scores or (k_j, k_i) in scores:
           # Account for same & symmetry
           continue
 
+
         for inst_i, inst_j in zip(importance_dictionary[k_i], importance_dictionary[k_j]):
           r = corr.correlation(inst_i, inst_j)
           corrs.append(r[corr.id].correlation)
         scores[(k_i, k_j)] = np.mean(corrs)
+        raw_correlations[(k_i, k_j)] = corrs
+
   pprint(scores)
-  return scores
+  return scores, raw_correlations
 
 def evaluate(model, data, args, meta):
   model.eval()
@@ -325,6 +334,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
         args.lr, weight_decay=args.l2)
 
   train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True)
+  train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
   val_iter = make_iterable(val_dataset, device, batch_size=args.batch_size)
   test_iter = make_iterable(test_dataset, device, batch_size=args.batch_size)
 
@@ -344,6 +354,12 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   correlations = [get_corr(key)() for key in args.correlation_measures]
   print(f"Correlation measures: {correlations}")
 
+  # TODO: check if rationales exist in the dataset
+  use_rationales = True if args.data in ['IMDB-rationale'] else False
+
+  if ul_epochs == -1:
+    ul_epochs = len(train_iter) / args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
+
   loss = 0.
   # The actual training loop
   try:
@@ -351,35 +367,42 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
     best_valid_epoch = 0
     best_model = copy.deepcopy(model)
 
-    for epoch in range(1, args.epochs + 1):
+    for ul_epoch in range(1, ul_epochs + 1):
+      # Reduce dataset post-train loop
 
-      total_time = time.time()
+      for epoch in range(1, args.epochs + 1):
 
-      train(model, train_iter, optimizer, criterion, args, meta)
+        train(model, train_iter, optimizer, criterion, args, meta)
 
-      total_time = time.time()
+        # Compute importance scores for tokens on all batches of validation split
 
-      # Compute importance scores for tokens on all batches of validation split
-      # TODO: check if rationales exist in the dataset
-      use_rationales = True if args.data in ['IMDB-rationale'] else False
+        result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
+        # print(result_dict['rationales'])
+        # Compute pairwise correlations between interpretability methods
+        scores, raw_correlations = pairwise_correlation(result_dict['attributions'], correlations)
 
-      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
-      # print(result_dict['rationales'])
-      # Compute pairwise correlations between interpretability methods
-      scores = pairwise_correlation(result_dict['attributions'], correlations)
+        if use_rationales:
+          rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+          pprint(rationale_scores)
 
-      if use_rationales:
-        rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
-        pprint(rationale_scores)
+        print(f"Epoch={epoch}, evaluating on validation set:")
+        result_dict = evaluate(model, val_iter, args, meta)
+        loss = result_dict['loss']
 
-      print(f"Epoch={epoch}, evaluating on validation set:")
-      result_dict = evaluate(model, val_iter, args, meta)
-      loss = result_dict['loss']
+        if best_valid_loss is None or loss < best_valid_loss:
+          best_valid_loss = loss
+          best_valid_epoch = epoch
+          best_model = copy.deepcopy(model) # clone params of model, this might be slow, maybe dump?
 
-      if best_valid_loss is None or loss < best_valid_loss:
-        best_valid_loss = loss
-        best_valid_epoch = epoch
-        best_model = copy.deepcopy(model) # clone params of model, this might be slow, maybe dump?
+
+      # Run on train set without shuffling so instance indices are preserved
+      train_interpret_scores = interpret_evaluate(interpreters, model, train_iter_noshuf, args, meta, use_rationales=use_rationales)
+      train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
+
+      per_instance_agreement = list(zip(*train_raw_correlations.values()))
+      print(len(per_instance_agreement), per_instance_agreement[0])
+
+
 
   except KeyboardInterrupt:
     print("[Ctrl+C] Training stopped!")
@@ -391,7 +414,6 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
   best_model_pack = (best_model, criterion, optimizer)
   return results, best_model_pack
-
 
 def main():
   args = make_parser()
