@@ -89,6 +89,10 @@ class EntropySampler(Sampler):
 class EntropyDropoutSampler(Sampler):
     name = "entropy_dropout"
 
+    def __init__(self, dataset, batch_size, device, n_drop=10):
+        self.n_drop = n_drop
+        super().__init__(dataset, batch_size, device)
+
     def query(self, query_size, unlab_inds, model, num_labels, **kwargs):
         probs = (
             self._predict_probs_dropout(model, self.n_drop, unlab_inds, num_labels)

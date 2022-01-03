@@ -5,7 +5,7 @@ from sklearn.cluster import KMeans
 
 
 class KMeansSampler(Sampler):
-    name = "k_means"
+    name = "kmeans"
 
     def query(self, query_size, unlab_inds, model, **kwargs):
         embeddings = self._forward_iter(unlab_inds, model.get_encoded).cpu().numpy()
