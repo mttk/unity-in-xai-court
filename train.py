@@ -404,7 +404,13 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       per_instance_agreement = list(zip(*train_raw_correlations.values()))
       print(len(train_iter) * args.batch_size, len(train_iter_noshuf) * args.batch_size)
       print(len(per_instance_agreement), per_instance_agreement[0])
-
+      min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
+      worst_agreement = min_agreement_indices[:query_size] # Worst query_size instances
+      for instance_index in worst_agreement:
+        print(train_dataset[instance_index])
+        print(per_instance_agreement[instance_index])
+        print()
+      sys.exit(-1)
 
 
   except KeyboardInterrupt:
