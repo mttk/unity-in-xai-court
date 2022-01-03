@@ -358,7 +358,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   use_rationales = True if args.data in ['IMDB-rationale'] else False
 
   if args.ul_epochs == -1:
-    ul_epochs = len(train_iter) // args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
+    ul_epochs = len(train_iter) * args.batch_size // args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
   else:
     ul_epochs = args.ul_epochs
 
@@ -402,7 +402,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
 
       per_instance_agreement = list(zip(*train_raw_correlations.values()))
-      print(len(train_iter), len(train_iter_noshuf))
+      print(len(train_iter) * args.batch_size, len(train_iter_noshuf) * args.batch_size)
       print(len(per_instance_agreement), per_instance_agreement[0])
 
 
