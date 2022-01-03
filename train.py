@@ -357,8 +357,10 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   # TODO: check if rationales exist in the dataset
   use_rationales = True if args.data in ['IMDB-rationale'] else False
 
-  if ul_epochs == -1:
+  if args.ul_epochs == -1:
     ul_epochs = len(train_iter) / args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
+  else:
+    ul_epochs = args.ul_epochs
 
   loss = 0.
   # The actual training loop
