@@ -401,7 +401,9 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       train_interpret_scores = interpret_evaluate(interpreters, model, train_iter_noshuf, args, meta, use_rationales=use_rationales)
       train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
 
-      per_instance_agreement = list(zip(*train_raw_correlations.values()))
+      for k in train_raw_correlations:
+        per_instance_agreement = train_raw_correlations[k]
+
       print(len(train_iter) * args.batch_size, len(train_iter_noshuf) * args.batch_size)
       print(len(per_instance_agreement), per_instance_agreement[0])
       min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
