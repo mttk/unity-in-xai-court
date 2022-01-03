@@ -100,7 +100,7 @@ def make_parser():
 
   # Model "unlearning" -- removing train instances with largest disagreement
   parser.add_argument('--ul-epochs', type=int, default=-1,
-                        help='Number of UL epochs (-1 uses the whole train set)'))
+                        help='Number of UL epochs (-1 uses the whole train set)')
 
   # Active learning arguments
   parser.add_argument('--al-sampler', default="entropy",
