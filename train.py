@@ -414,7 +414,6 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
       for instance_index in worst_agreement:
         print(instance_index)
         print(train_dataset[instance_index])
-        print(train_interpret_scores['attributions'])
         print(per_instance_agreement[instance_index])
         print()
       sys.exit(-1)
