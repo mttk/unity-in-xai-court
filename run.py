@@ -11,8 +11,6 @@ from datetime import datetime
 if __name__ == "__main__":
 
     args = make_parser()
-    dataset_name = "IMDB"
-    model_name = "JWA Classifier"
     result_list = []
 
     # Initialize logging
@@ -22,16 +20,29 @@ if __name__ == "__main__":
         level=logging.INFO,
         handlers=[
             logging.FileHandler(
-                f"log/{dataset_name}-{args.al_sampler}-{start_time}.log"
+                f"log/{args.data}-{args.model_name}-{args.al_sampler}-{start_time}.log"
             ),
             logging.StreamHandler(),
         ],
     )
 
+    meta = {
+        "dataset": args.data,
+        "model": args.model_name,
+        "al_sampler": args.al_sampler,
+        "warm_start_size": args.warm_start_size,
+        "query_size": args.query_size,
+        "batch_size": args.batch_size,
+        "epochs_per_train": args.epochs,
+        "interpreters": args.interpreters,
+    }
+    logging.info(meta)
+
     for i in range(1, args.repeat + 1):
         logging.info(f"Running experiment {i}/{args.repeat}")
         logging.info(f"=" * 100)
         (train, val, test), vocab = load_imdb()
+        train.shuffle_examples()
         train = train[: args.max_train_size]
         logging.info(f"Maximum train size: {len(train)}")
 
@@ -74,20 +85,10 @@ if __name__ == "__main__":
         )
         result_list.append(results)
 
-        fname = f"{dataset_name}-{sampler.name}-{i}-{start_time}.pkl"
+        fname = f"{args.data}-{args.model_name}-{sampler.name}-{i}-{start_time}.pkl"
         with open(f"results/{fname}", "wb") as f:
             pickle.dump(results, f)
 
-    meta = {
-        "dataset": dataset_name,
-        "model": model_name,
-        "al_sampler": args.al_sampler,
-        "warm_start_size": args.warm_start_size,
-        "query_size": args.query_size,
-        "batch_size": args.batch_size,
-        "epochs_per_train": args.epochs,
-        "interpreters": args.interpreters,
-    }
-    fname = f"{dataset_name}-{sampler.name}-all-{start_time}.pkl"
+    fname = f"{args.data}-{args.model_name}-{sampler.name}-all-{start_time}.pkl"
     with open(f"results/{fname}", "wb") as f:
         pickle.dump((result_list, meta), f)

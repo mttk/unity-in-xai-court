@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from model import JWAttentionClassifier
+from model import JWAttentionClassifier, MLP
 
 from captum.attr import visualization
 
@@ -75,7 +75,7 @@ class Interpreter:
         vocab = self.predictor.vocab
 
         # Manually check for distilbert.
-        if isinstance(self.predictor, JWAttentionClassifier):
+        if isinstance(self.predictor, JWAttentionClassifier) or isinstance(self.predictor, MLP):
             embedding = self.predictor.embedding
         else: # DistillBert?
             embedding = self.predictor.embeddings # Need to assure the embedding is always fetchable

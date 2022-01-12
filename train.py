@@ -32,11 +32,19 @@ dataset_loaders = {
   'TSE': load_tse
 }
 
+models = {
+  'JWA': JWAttentionClassifier,
+  'MLP': MLP,
+}
+
 def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
                         help='Data corpus: [IMDB, IMDB-rationale, TSE]')
+  parser.add_argument('--model-name', type=str, default='JWA', help='Model: [JWA, MLP]')
 
+
+  # JWA arguments
   parser.add_argument('--rnn_type', type=str, default='LSTM',
                         help='type of recurrent net [LSTM, GRU, MHA]')
   parser.add_argument('--attention_type', type=str, default='nqadd',
@@ -161,7 +169,8 @@ def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
   meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name='glove'))
-  model = JWAttentionClassifier(args, meta)
+  model_cls = models[args.model_name]
+  model = model_cls(args, meta)
 
   return model
 

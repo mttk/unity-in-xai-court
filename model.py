@@ -238,3 +238,85 @@ class AdditiveAttention(nn.Module):
     values = values.transpose(0,1) # [TxBxV] -> [BxTxV]
     linear_combination = torch.bmm(energy, values).squeeze(1) #[Bx1xT]x[BxTxV] -> [BxV]
     return energy, linear_combination
+
+
+class MLP(nn.Module, CaptumCompatible, AcquisitionModel):
+  def __init__(self, config, meta):
+    super().__init__()
+    # Store vocab for interpretability methods
+    self.vocab = meta.vocab
+    self.num_targets = meta.num_targets
+    self.hidden_dim = config.hidden_dim
+    # Initialize embeddings
+    self.embedding_dim = config.embedding_dim
+    self.embedding = nn.Embedding(meta.num_tokens, config.embedding_dim,
+                                  padding_idx=meta.padding_idx)
+    if meta.embeddings is not None:
+      self.embedding.weight.data.copy_(meta.embeddings)
+
+    if config.freeze:
+      self.embedding.weight.requires_grad = False
+
+    self.hidden = nn.Linear(self.embedding_dim, self.hidden_dim)
+    self.decoder = nn.Linear(self.hidden_dim, meta.num_targets)
+
+  def encode(self, embedded_tokens, lengths):
+    # Reduce time dimension
+    mean_emb = embedded_tokens.mean(dim=1)
+    hidden = self.hidden(mean_emb)
+    return hidden
+    
+  def forward_inner(self, embedded_tokens, lengths):
+    hidden = self.encode(embedded_tokens, lengths)
+    pred = self.decoder(hidden)  # [Bx1]
+
+    return pred, hidden
+
+  def forward(self, inputs, lengths=None):
+    # inputs = [BxT]
+    e = self.embedding(inputs) # [BxTxE]
+
+    pred, hidden = self.forward_inner(e, lengths)
+
+    # For additional return arguments
+    return_dict = {
+        'embeddings': e,
+        'encoded': hidden,
+    }
+
+    return pred, return_dict
+
+  def get_encoder_dim(self):
+    return self.hidden_dim
+
+  def get_encoded(self, inputs, lengths=None):
+    with torch.inference_mode():
+      e = self.embedding(inputs)
+      hidden = self.encode(e, lengths)
+      return hidden
+
+  def predict_probs(self, inputs, lengths=None):
+    with torch.inference_mode():
+      logits, _ = self(inputs, lengths)
+      if self.num_targets == 1:
+        # Binary classification
+        y_pred = torch.sigmoid(logits)
+        y_pred = torch.cat([1.0 - y_pred, y_pred], dim=1)
+      else:
+        # Multiclass classification
+        y_pred = F.softmax(logits, dim=1)
+      return y_pred
+
+  @overrides
+  def captum_sub_model(self):
+    return _CaptumSubModel(self)
+
+  @overrides
+  def instances_to_captum_inputs(self, inputs, lengths, labels=None):
+    # Technically just does an index -> embedding map right now
+    # inputs: [BxT]
+    with torch.no_grad():
+      e = self.embedding(inputs)
+    # pad_mask = create_pad_mask_from_length(inputs, lengths)
+
+    return e, None, (lengths)
