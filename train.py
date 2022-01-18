@@ -29,7 +29,8 @@ word_vector_files = {
 dataset_loaders = {
   'IMDB': load_imdb,
   'IMDB-rationale': load_imdb_rationale,
-  'TSE': load_tse
+  'TSE': load_tse,
+  'TREC': load_trec,
 }
 
 models = {
@@ -40,7 +41,7 @@ models = {
 def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
-                        help='Data corpus: [IMDB, IMDB-rationale, TSE]')
+                        help='Data corpus: [IMDB, IMDB-rationale, TSE, TREC]')
   parser.add_argument('--model-name', type=str, default='JWA', help='Model: [JWA, MLP]')
 
 

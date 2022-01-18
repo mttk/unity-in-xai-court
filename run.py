@@ -41,13 +41,15 @@ if __name__ == "__main__":
     for i in range(1, args.repeat + 1):
         logging.info(f"Running experiment {i}/{args.repeat}")
         logging.info(f"=" * 100)
-        (train, val, test), vocab = load_imdb()
+        dataloader = dataset_loaders[args.data]
+        (train, val, test), vocab = dataloader()
         train.shuffle_examples()
         train = train[: args.max_train_size]
         logging.info(f"Maximum train size: {len(train)}")
 
         meta = Config()
-        meta.num_labels = 2
+        meta.num_labels = len(train.field("label").vocab)
+        print(meta.num_labels)
         meta.num_tokens = len(vocab)
         meta.padding_idx = vocab.get_padding_index()
         meta.vocab = vocab

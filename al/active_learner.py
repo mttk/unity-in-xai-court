@@ -239,7 +239,7 @@ class ActiveLearner:
 
         equal = torch.eq(max_ind, y)
         correct = int(torch.sum(equal))
-        if len(max_ind.shape) == 0:
+        if len(y.shape) == 0:
             # only one element here? is this even possible?
             confusion_matrix[y, max_ind] += 1
         else:
