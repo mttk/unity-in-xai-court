@@ -1,3 +1,4 @@
+from json import load
 from al.sampler_mapping import get_al_sampler
 from al.active_learner import ActiveLearner
 from dataloaders import *
@@ -49,7 +50,6 @@ if __name__ == "__main__":
 
         meta = Config()
         meta.num_labels = len(train.field("label").vocab)
-        print(meta.num_labels)
         meta.num_tokens = len(vocab)
         meta.padding_idx = vocab.get_padding_index()
         meta.vocab = vocab

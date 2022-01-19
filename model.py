@@ -200,7 +200,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
       e = self.embedding(inputs)
     # pad_mask = create_pad_mask_from_length(inputs, lengths)
 
-    return e, None, (lengths)
+    return e, labels, (lengths)
 
 class AdditiveAttention(nn.Module):
   """Tanh attention; query is a learned parameter (same as JW paper)

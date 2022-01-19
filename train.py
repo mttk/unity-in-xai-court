@@ -1,4 +1,5 @@
 import argparse
+from opcode import hasconst
 import os, sys
 import time
 import copy
@@ -169,7 +170,9 @@ def correct_for_missing(indices, mask):
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
-  meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name='glove'))
+  if not hasattr(meta, "embeddings"):
+    # Cache embeddings
+    meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name='glove'))
   model_cls = models[args.model_name]
   model = model_cls(args, meta)
 
@@ -304,7 +307,8 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
 
     for k, interpreter in interpreters.items():
       # print(lengths.shape)
-      batch_attributions = interpreter.interpret(x, lengths)
+      labels = None if meta.num_targets == 1 else y.squeeze()
+      batch_attributions = interpreter.interpret(x, lengths, labels=labels)
       batch_attributions = batch_attributions.detach().cpu().numpy()
 
       # attributions[k].extend(batch_attributions)
