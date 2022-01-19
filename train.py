@@ -113,7 +113,7 @@ def make_parser():
                         help='Number of UL epochs (-1 uses the whole train set)')
 
   # Active learning arguments
-  parser.add_argument('--al-sampler', default="entropy",
+  parser.add_argument('--al-sampler', default="random",
                         choices=[
                           "random",
                           "least_confident",
@@ -126,6 +126,11 @@ def make_parser():
                           "badge",
                           "core_set",
                           "batch_bald",
+                          "most_confident",
+                          "anti_margin",
+                          "anti_entropy",
+                          "anti_kmeans",
+                          "anti_core_set",
                         ],
                         help='Active learning sampler')
   parser.add_argument('--al-epochs', type=int, default=-1,

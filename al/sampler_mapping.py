@@ -1,15 +1,18 @@
 from al.bald.batch_bald import BatchBALDDropout
-from al.kmeans import KMeansSampler
+from al.kmeans import AntiKMeansSampler, KMeansSampler
 from al.sampler import RandomSampler
 from al.uncertainty import (
+    AntiEntropySampler,
+    AntiMarginSampler,
     EntropyDropoutSampler,
     EntropySampler,
     LeastConfidentDropoutSampler,
     LeastConfidentSampler,
     MarginDropoutSampler,
     MarginSampler,
+    MostConfidentSampler,
 )
-from al.core_set import CoreSet
+from al.core_set import AntiCoreSet, CoreSet
 from al.badge import BADGE
 
 
@@ -25,6 +28,11 @@ AL_SAMPLERS = {
     BADGE.name: BADGE,
     CoreSet.name: CoreSet,
     BatchBALDDropout.name: BatchBALDDropout,
+    MostConfidentSampler.name: MostConfidentSampler,
+    AntiMarginSampler.name: AntiMarginSampler,
+    AntiEntropySampler.name: AntiEntropySampler,
+    AntiKMeansSampler.name: AntiKMeansSampler,
+    AntiCoreSet.name: AntiCoreSet,
 }
 
 
