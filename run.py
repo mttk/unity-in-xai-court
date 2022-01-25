@@ -27,7 +27,7 @@ if __name__ == "__main__":
         ],
     )
 
-    meta_info = {
+    meta = {
         "dataset": args.data,
         "model": args.model_name,
         "al_sampler": args.al_sampler,
@@ -37,7 +37,7 @@ if __name__ == "__main__":
         "epochs_per_train": args.epochs,
         "interpreters": args.interpreters,
     }
-    logging.info(meta_info)
+    logging.info(meta)
 
     for i in range(1, args.repeat + 1):
         logging.info(f"Running experiment {i}/{args.repeat}")
@@ -93,4 +93,4 @@ if __name__ == "__main__":
 
     fname = f"{args.data}-{args.model_name}-{sampler.name}-all-{start_time}.pkl"
     with open(f"results/{fname}", "wb") as f:
-        pickle.dump((result_list, meta_info), f)
+        pickle.dump((result_list, meta), f)
