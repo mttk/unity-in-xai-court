@@ -11,7 +11,6 @@ class LeastConfidentSampler(Sampler):
         probs = self._forward_iter(unlab_inds, model.predict_probs).cpu().numpy()
         max_probs = np.max(probs, axis=1)
 
-        # Retrieve `query_size` instances with highest posterior probabilities.
         top_n = np.argpartition(max_probs, query_size)[:query_size]
         return unlab_inds[top_n]
 
@@ -23,7 +22,6 @@ class MostConfidentSampler(Sampler):
         probs = self._forward_iter(unlab_inds, model.predict_probs).cpu().numpy()
         max_probs = np.max(probs, axis=1)
 
-        # Retrieve `query_size` instances with highest posterior probabilities.
         top_n = np.argpartition(max_probs, -query_size)[-query_size:]
         return unlab_inds[top_n]
 
@@ -43,7 +41,6 @@ class LeastConfidentDropoutSampler(Sampler):
         )
         max_probs = np.max(probs, axis=1)
 
-        # Retrieve `query_size` instances with highest posterior probabilities.
         top_n = np.argpartition(max_probs, query_size)[:query_size]
         return unlab_inds[top_n]
 
@@ -62,7 +59,7 @@ class MarginSampler(Sampler):
 
 
 class AntiMarginSampler(Sampler):
-    name = "margin"
+    name = "anti_margin"
 
     def query(self, query_size, unlab_inds, model, **kwargs):
         probs = self._forward_iter(unlab_inds, model.predict_probs).cpu().numpy()
@@ -70,7 +67,6 @@ class AntiMarginSampler(Sampler):
         sort_probs = np.sort(probs, 1)[:, -2:]
         min_margin = sort_probs[:, 1] - sort_probs[:, 0]
 
-        # Retrieve `query_size` instances with smallest margins.
         top_n = np.argpartition(min_margin, -query_size)[-query_size:]
         return unlab_inds[top_n]
 
@@ -91,7 +87,6 @@ class MarginDropoutSampler(Sampler):
         sort_probs = np.sort(probs, 1)[:, -2:]
         min_margin = sort_probs[:, 1] - sort_probs[:, 0]
 
-        # Retrieve `query_size` instances with smallest margins.
         top_n = np.argpartition(min_margin, query_size)[:query_size]
         return unlab_inds[top_n]
 
@@ -106,7 +101,6 @@ class EntropySampler(Sampler):
         probs = np.clip(probs, a_min=1e-6, a_max=None)
         entropies = np.sum(-probs * np.log(probs), axis=1)
 
-        # Retrieve `query_size` instances with highest entropies.
         top_n = np.argpartition(entropies, -query_size)[-query_size:]
         return unlab_inds[top_n]
 
@@ -128,7 +122,7 @@ class AntiEntropySampler(Sampler):
 class EntropyDropoutSampler(Sampler):
     name = "entropy_dropout"
 
-    def __init__(self, dataset, batch_size, device, n_drop=10):
+    def __init__(self, dataset, batch_size, device, n_drop=30):
         self.n_drop = n_drop
         super().__init__(dataset, batch_size, device)
 
@@ -143,6 +137,5 @@ class EntropyDropoutSampler(Sampler):
         probs = np.clip(probs, a_min=1e-6, a_max=None)
         entropies = np.sum(-probs * np.log(probs), axis=1)
 
-        # Retrieve `query_size` instances with highest entropies.
         top_n = np.argpartition(entropies, -query_size)[-query_size:]
         return unlab_inds[top_n]

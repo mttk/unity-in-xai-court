@@ -4,6 +4,9 @@ import torch.nn.functional as F
 
 import numpy as np
 
+import os
+import random
+
 
 class Config(dict):
     def __init__(self, *args, **kwargs):
@@ -61,3 +64,16 @@ def create_pad_mask_from_length(tensor, lengths, idx=-1):
     mask = torch.arange(tensor.size(idx))[None, :].to(lengths.device) < lengths[:, None]
     mask = mask.to(tensor.device)
     return mask
+
+
+def set_seed_everywhere(seed):
+    random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False

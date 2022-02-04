@@ -321,7 +321,7 @@ def load_trec(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
         train_val_conv.as_dataset(),
         test_conv.as_dataset(),
     )
-    train, val = train_val.split(split_ratio=0.8)
+    train, val = train_val.split(split_ratio=0.8, random_state=0)
     train.finalize_fields()
     print(train)
     return (train, val, test), vocab

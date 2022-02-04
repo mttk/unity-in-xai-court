@@ -42,7 +42,7 @@ class ActiveLearner:
 
         al_epochs = self.args.al_epochs
         if al_epochs == -1:
-            unlab_size = (~lab_mask).sum()
+            unlab_size = self.args.max_train_size - lab_mask.sum()
             al_epochs = np.int(np.ceil(unlab_size / query_size)) + 1
 
         results = {"train": [], "eval": [], "agreement": [], "labeled": []}
@@ -57,6 +57,15 @@ class ActiveLearner:
             # Create new model: re-train scenario.
             model = create_model_fn(self.args, self.meta)
             model.to(self.device)
+
+            indices, *_ = np.where(lab_mask)
+            train_iter = make_iterable(
+                self.train_set,
+                self.device,
+                batch_size=self.batch_size,
+                train=False,
+                indices=indices,
+            )
             optimizer = torch.optim.Adam(
                 model.parameters(), self.args.lr, weight_decay=self.args.l2
             )
@@ -71,7 +80,7 @@ class ActiveLearner:
                 logging.info(f"Training epoch: {epoch}/{self.args.epochs}")
                 # a) Train for one epoch
                 result_dict_train = self._train_model(
-                    model, lab_mask, optimizer, criterion
+                    model, optimizer, criterion, train_iter
                 )
                 train_results.append(result_dict_train)
 
@@ -94,6 +103,9 @@ class ActiveLearner:
                 )
                 agreement_results.append(scores)
                 logging.info("Interpretability scores", scores)
+
+                # d) Calculate dataset cartography
+                # confidence = self._cartography_confidence(model, lab_mask)
 
             # 2) Retrieve active sample.
             if not lab_mask.all():
@@ -125,24 +137,15 @@ class ActiveLearner:
 
         return results
 
-    def _train_model(self, model, lab_mask, optimizer, criterion):
+    def _train_model(self, model, optimizer, criterion, train_iter):
         model.train()
 
-        indices, *_ = np.where(lab_mask)
-        data = make_iterable(
-            self.train_set,
-            self.device,
-            batch_size=self.batch_size,
-            train=True,
-            indices=indices,
-        )
         total_loss = 0.0
         accuracy, confusion_matrix = 0, np.zeros(
             (self.meta.num_labels, self.meta.num_labels), dtype=int
         )
 
-        for batch_num, batch in enumerate(data):
-
+        for batch_num, batch in enumerate(train_iter):
             t = time.time()
 
             # Unpack batch & cast to device
@@ -163,19 +166,21 @@ class ActiveLearner:
             loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
 
             total_loss += float(loss)
+
+            optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), self.args.clip)
             optimizer.step()
 
             print(
                 "[Batch]: {}/{} in {:.5f} seconds".format(
-                    batch_num, len(data), time.time() - t
+                    batch_num, len(train_iter), time.time() - t
                 ),
                 end="\r",
                 flush=True,
             )
 
-        loss = total_loss / len(data) / data.batch_size
+        loss = total_loss / len(self.train_set)
         result_dict = {"loss": loss}
         return result_dict
 
@@ -192,7 +197,6 @@ class ActiveLearner:
                 # if batch_num > 100: break # checking beer imitation
 
                 t = time.time()
-                model.zero_grad()
 
                 # Unpack batch & cast to device
                 (x, lengths), y = batch.text, batch.label
@@ -200,15 +204,11 @@ class ActiveLearner:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
 
                 logits, _ = model(x, lengths)
-                # attn = return_dict['attn'].squeeze()
 
                 # Bookkeeping and cast label to float
                 accuracy, confusion_matrix = ActiveLearner.update_stats(
                     accuracy, confusion_matrix, logits, y
                 )
-                if logits.shape[-1] == 1:
-                    # binary cross entropy, cast labels to float
-                    y = y.type(torch.float)
 
                 print(
                     "[Batch]: {}/{} in {:.5f} seconds".format(

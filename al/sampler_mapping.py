@@ -12,7 +12,7 @@ from al.uncertainty import (
     MarginSampler,
     MostConfidentSampler,
 )
-from al.core_set import AntiCoreSet, CoreSet
+from al.core_set import CoreSet
 from al.badge import BADGE
 
 
@@ -32,7 +32,6 @@ AL_SAMPLERS = {
     AntiMarginSampler.name: AntiMarginSampler,
     AntiEntropySampler.name: AntiEntropySampler,
     AntiKMeansSampler.name: AntiKMeansSampler,
-    AntiCoreSet.name: AntiCoreSet,
 }
 
 
