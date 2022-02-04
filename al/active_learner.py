@@ -6,6 +6,41 @@ import time
 from train import *
 from dataloaders import *
 
+from util import logits_to_probs
+
+
+def compute_forgetfulness(epochwise_tensor):
+    """
+    Given a epoch-wise trend of train predictions, compute frequency with which
+    an example is forgotten, i.e. predicted incorrectly _after_ being predicted correctly.
+    Based on: https://arxiv.org/abs/1812.05159
+    """
+
+    out = []
+
+    datawise_tensor = epochwise_tensor.transpose(0, 1)
+    for correctness_trend in datawise_tensor:
+        if not any(
+            correctness_trend
+        ):  # Example is never predicted correctly, or learnt!
+            return 1000
+        learnt = False  # Predicted correctly in the current epoch.
+        times_forgotten = 0
+        for is_correct in correctness_trend:
+            if (not learnt and not is_correct) or (learnt and is_correct):
+                # Nothing changed.
+                continue
+            elif learnt and not is_correct:
+                # Forgot after learning at some point!
+                learnt = False
+                times_forgotten += 1
+            elif not learnt and is_correct:
+                # Learnt!
+                learnt = True
+        out.append(torch.tensor(times_forgotten))
+
+    return torch.stack(out)
+
 
 class ActiveLearner:
     def __init__(self, sampler, train_set, test_set, device, args, meta):
@@ -45,7 +80,13 @@ class ActiveLearner:
             unlab_size = self.args.max_train_size - lab_mask.sum()
             al_epochs = np.int(np.ceil(unlab_size / query_size)) + 1
 
-        results = {"train": [], "eval": [], "agreement": [], "labeled": []}
+        results = {
+            "train": [],
+            "eval": [],
+            "agreement": [],
+            "labeled": [],
+            "cartography": [],
+        }
         for al_epoch in range(1, al_epochs + 1):
             logging.info(f"AL epoch: {al_epoch}/{al_epochs}")
             results["labeled"].append(lab_mask.sum())
@@ -76,10 +117,11 @@ class ActiveLearner:
             train_results = []
             eval_results = []
             agreement_results = []
+            cartography_trends = {"is_correct": [], "true_probs": []}
             for epoch in range(1, self.args.epochs + 1):
                 logging.info(f"Training epoch: {epoch}/{self.args.epochs}")
                 # a) Train for one epoch
-                result_dict_train = self._train_model(
+                result_dict_train, logits, y_true = self._train_model(
                     model, optimizer, criterion, train_iter
                 )
                 train_results.append(result_dict_train)
@@ -104,10 +146,24 @@ class ActiveLearner:
                 agreement_results.append(scores)
                 logging.info("Interpretability scores", scores)
 
-                # d) Calculate dataset cartography
-                # confidence = self._cartography_confidence(model, lab_mask)
+                # d) Calculate epoch cartography
+                is_correct, true_probs = self._cartography_epoch(logits, y_true)
+                cartography_trends["is_correct"].append(is_correct)
+                cartography_trends["true_probs"].append(true_probs)
 
-            # 2) Retrieve active sample.
+            # 2) Dataset cartography
+            logging.info("Computing dataset cartography...")
+            cartography_results = {}
+            is_correct = torch.stack(cartography_trends["is_correct"])
+            true_probs = torch.stack(cartography_trends["true_probs"])
+            cartography_results["correctness"] = is_correct.sum(dim=0)
+            cartography_results["confidence"] = true_probs.mean(dim=0)
+            cartography_results["variability"] = true_probs.std(dim=0)
+            cartography_results["forgetfulness"] = compute_forgetfulness(is_correct)
+            conf = cartography_results["confidence"]
+            cartography_results["threshold_closeness"] = conf * (1 - conf)
+
+            # 3) Retrieve active sample.
             if not lab_mask.all():
                 logging.info("Retrieving AL sample...")
                 lab_inds, *_ = np.where(lab_mask)
@@ -134,6 +190,7 @@ class ActiveLearner:
             results["train"].append(train_results)
             results["eval"].append(eval_results)
             results["agreement"].append(agreement_results)
+            results["cartography"].append(cartography_results)
 
         return results
 
@@ -145,6 +202,8 @@ class ActiveLearner:
             (self.meta.num_labels, self.meta.num_labels), dtype=int
         )
 
+        logit_list = []
+        y_true_list = []
         for batch_num, batch in enumerate(train_iter):
             t = time.time()
 
@@ -152,8 +211,10 @@ class ActiveLearner:
             (x, lengths), y = batch.text, batch.label
 
             y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
+            y_true_list.append(y)
 
             logits, _ = model(x, lengths)
+            logit_list.append(logits)
 
             # Bookkeeping and cast label to float
             accuracy, confusion_matrix = ActiveLearner.update_stats(
@@ -182,7 +243,9 @@ class ActiveLearner:
 
         loss = total_loss / len(self.train_set)
         result_dict = {"loss": loss}
-        return result_dict
+        logit_tensor = torch.cat(logit_list)
+        y_true = torch.cat(y_true_list)
+        return result_dict, logit_tensor, y_true
 
     def _evaluate_model(self, model):
         model.eval()
@@ -247,3 +310,11 @@ class ActiveLearner:
                 confusion_matrix[int(i), int(j)] += 1
 
         return accuracy + correct, confusion_matrix
+
+    def _cartography_epoch(self, logits, y_true):
+        probs = logits_to_probs(logits)
+        true_probs = probs[y_true]
+        y_pred = torch.argmax(probs, dim=1)
+        is_correct = y_pred == y_true
+
+        return is_correct, true_probs
