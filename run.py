@@ -54,6 +54,7 @@ if __name__ == "__main__":
             "batch_size": args.batch_size,
             "epochs_per_train": args.epochs,
             "seeds": seeds,
+            "interpreters": args.interpreters,
         }
         logging.info(meta_info)
 

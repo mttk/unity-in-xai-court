@@ -23,7 +23,8 @@ def compute_forgetfulness(epochwise_tensor):
         if not any(
             correctness_trend
         ):  # Example is never predicted correctly, or learnt!
-            return 1000
+            out.append(torch.tensor(1000))
+            continue
         learnt = False  # Predicted correctly in the current epoch.
         times_forgotten = 0
         for is_correct in correctness_trend:
@@ -67,13 +68,16 @@ class ActiveLearner:
         query_size,
         correlations,
     ):
-        # Initialize label mask.
-        lab_mask = np.full(len(self.train_set), False)
-        # TODO: stratified warm start
-        random_inds = np.random.choice(
-            len(self.train_set), warm_start_size, replace=False
-        )
-        lab_mask[random_inds] = True
+        if warm_start_size == -1:
+            lab_mask = np.full(len(self.train_set), True)
+        else:
+            # Initialize label mask.
+            lab_mask = np.full(len(self.train_set), False)
+            # TODO: stratified warm start
+            random_inds = np.random.choice(
+                len(self.train_set), warm_start_size, replace=False
+            )
+            lab_mask[random_inds] = True
 
         al_epochs = self.args.al_epochs
         if al_epochs == -1:
@@ -91,7 +95,7 @@ class ActiveLearner:
             logging.info(f"AL epoch: {al_epoch}/{al_epochs}")
             results["labeled"].append(lab_mask.sum())
 
-            # 1) Train model with labeled data: fine-tune vs. re-train
+            # 1) Train model on labeled data.
             logging.info(
                 f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data..."
             )
@@ -110,7 +114,7 @@ class ActiveLearner:
             optimizer = torch.optim.Adam(
                 model.parameters(), self.args.lr, weight_decay=self.args.l2
             )
-            # Prepare interpreters.
+            # Prepare interpreters
             interpreters = {
                 i: get_interpreter(i)(model) for i in sorted(self.args.interpreters)
             }
@@ -156,10 +160,18 @@ class ActiveLearner:
             cartography_results = {}
             is_correct = torch.stack(cartography_trends["is_correct"])
             true_probs = torch.stack(cartography_trends["true_probs"])
-            cartography_results["correctness"] = is_correct.sum(dim=0)
-            cartography_results["confidence"] = true_probs.mean(dim=0)
-            cartography_results["variability"] = true_probs.std(dim=0)
-            cartography_results["forgetfulness"] = compute_forgetfulness(is_correct)
+            cartography_results["correctness"] = (
+                is_correct.sum(dim=0).squeeze().detach().numpy()
+            )
+            cartography_results["confidence"] = (
+                true_probs.mean(dim=0).squeeze().detach().numpy()
+            )
+            cartography_results["variability"] = (
+                true_probs.std(dim=0).squeeze().detach().numpy()
+            )
+            cartography_results["forgetfulness"] = compute_forgetfulness(
+                is_correct
+            ).numpy()
             conf = cartography_results["confidence"]
             cartography_results["threshold_closeness"] = conf * (1 - conf)
 
@@ -312,8 +324,10 @@ class ActiveLearner:
         return accuracy + correct, confusion_matrix
 
     def _cartography_epoch(self, logits, y_true):
+        logits = logits.cpu()
+        y_true = y_true.cpu()
         probs = logits_to_probs(logits)
-        true_probs = probs[y_true]
+        true_probs = probs.gather(dim=1, index=y_true.unsqueeze(dim=1)).squeeze()
         y_pred = torch.argmax(probs, dim=1)
         is_correct = y_pred == y_true
 
