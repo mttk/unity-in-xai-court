@@ -261,19 +261,31 @@ def plot_experiment_set(df_tr, df_agr, meta, sampler, figsize=(12, 16)):
     plt.show()
 
 
-def scatter_it(df, meta, hue_metric="correct.", show_hist=True):
+def scatter_it(df, meta, hue_metric="correct", show_hist=True):
     # Subsample data to plot, so the plot is not too busy.
     dataframe = df
     #     dataframe.sample(
     #         n=25000 if dataframe.shape[0] > 25000 else len(dataframe)
     #     )
 
-    # Normalize correctness to a value between 0 and 1.
-    dataframe = dataframe.assign(
-        corr_frac=lambda d: d.correctness / d.correctness.max()
-    )
-    dataframe = dataframe.sort_values("corr_frac")
-    dataframe["correct."] = [f"{x:.1f}" for x in dataframe["corr_frac"]]
+    if hue_metric == "correct":
+        # Normalize correctness to a value between 0 and 1.
+        dataframe = dataframe.assign(
+            corr_frac=lambda d: d.correctness / d.correctness.max()
+        )
+        dataframe = dataframe.sort_values("corr_frac")
+        dataframe[hue_metric] = [f"{x:.1f}" for x in dataframe["corr_frac"]]
+    elif hue_metric == "forget":
+        # Normalize forgetfulness to a value between 0 and 1.
+        dataframe = dataframe.assign(
+            forg_frac=lambda d: d.forgetfulness / d.forgetfulness.max()
+        )
+        dataframe = dataframe.sort_values("forg_frac")
+        dataframe[hue_metric] = [f"{x:.1f}" for x in dataframe["forg_frac"]]
+    else:
+        raise ValueError(
+            f"Hue metric {hue_metric} is not supported. Choose from ['correct', 'forget']."
+        )
 
     main_metric = "variability"
     other_metric = "confidence"
@@ -375,19 +387,30 @@ def scatter_it(df, meta, hue_metric="correct.", show_hist=True):
         plott1[0].set_title("")
         plott1[0].set_xlabel("variability")
 
-        plot2 = sns.countplot(x="correct.", data=dataframe, color="#86bf91", ax=ax3)
-        ax3.xaxis.grid(True)  # Show the vertical gridlines
+        if hue_metric == "correct":
+            plot2 = sns.countplot(x="correct", data=dataframe, color="#86bf91", ax=ax3)
+            ax3.xaxis.grid(True)  # Show the vertical gridlines
 
-        plot2.set_title("")
-        plot2.set_xlabel("correctness")
-        plot2.set_ylabel("")
+            plot2.set_title("")
+            plot2.set_xlabel("correctness")
+            plot2.set_ylabel("")
+
+        else:
+            plot2 = sns.countplot(x="forget", data=dataframe, color="#86bf91", ax=ax3)
+            ax3.xaxis.grid(True)  # Show the vertical gridlines
+
+            plot2.set_title("")
+            plot2.set_xlabel("forgetfulness")
+            plot2.set_ylabel("")
 
     fig.tight_layout()
 
 
-def plot_cartography(df_crt, sampler, al_iter, meta):
+def plot_cartography(
+    df_crt, sampler, al_iter, meta, hue_metric="correct", show_hist=True
+):
     df = convert_cartography_df(df_crt, sampler, al_iter)
-    scatter_it(df, meta)
+    scatter_it(df, meta, hue_metric=hue_metric, show_hist=show_hist)
 
 
 def convert_cartography_df(df, sampler, al_iter):
