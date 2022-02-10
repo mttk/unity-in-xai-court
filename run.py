@@ -45,6 +45,7 @@ if __name__ == "__main__":
             ],
         )
 
+        args.interpreters = sorted(args.interpreters)
         meta_info = {
             "dataset": args.data,
             "model": args.model_name,
