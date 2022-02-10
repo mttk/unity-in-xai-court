@@ -1,4 +1,5 @@
 import os, sys
+from random import random
 from re import M
 import torch
 
@@ -7,6 +8,7 @@ from podium import Vocab, Field, LabelField, BucketIterator
 from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
+from podium.datasets.impl import SST
 
 from datasets import load_dataset
 
@@ -324,6 +326,41 @@ def test_load_tse_rationale():
     print(vocab.get_padding_index())
 
 
+def load_sst(max_vocab_size=20_000, max_seq_len=200):
+    vocab = Vocab(max_size=max_vocab_size)
+    fields = [
+        Field(
+            "text",
+            numericalizer=vocab,
+            include_lengths=True,
+            posttokenize_hooks=[MaxLenHook(max_seq_len)],
+        ),
+        LabelField("label"),
+    ]
+    train, val, test = SST.get_dataset_splits(fields=fields)
+    return (train, val, test), vocab
+
+
+def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
+    splits, vocab = load_sst()
+    print(vocab)
+    train, valid, test = splits
+    print(len(train), len(valid), len(test))
+
+    print(train)
+    print(train[0])
+
+    device = torch.device("cpu")
+    train_iter = make_iterable(train, device, batch_size=2)
+    batch = next(iter(train_iter))
+
+    print(batch)
+    text, length = batch.text
+    print(vocab.reverse_numericalize(text[0]))
+    print(length[0])
+    print(vocab.get_padding_index())
+
+
 def load_trec(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
     vocab = Vocab(max_size=max_vocab_size)
     fields = [
@@ -375,18 +412,19 @@ def test_load_trec():
 
 
 if __name__ == "__main__":
-    (train, dev, test), vocab = load_imdb_rationale()
-    print(len(train), len(dev), len(test))
-    print(train[0].keys())
+    test_load_imdb()
+    # (train, dev, test), vocab = load_imdb_rationale()
+    # print(len(train), len(dev), len(test))
+    # print(train[0].keys())
 
-    device = torch.device("cpu")
-    train_iter = make_iterable(train, device, batch_size=2)
-    batch = next(iter(train_iter))
+    # device = torch.device("cpu")
+    # train_iter = make_iterable(train, device, batch_size=2)
+    # batch = next(iter(train_iter))
 
-    print(batch)
-    text, length = batch.text
-    rationale = batch.rationale
-    print(vocab.reverse_numericalize(text[0]))
-    print(length[0])
-    print(vocab.get_padding_index())
-    print(rationale)
+    # print(batch)
+    # text, length = batch.text
+    # rationale = batch.rationale
+    # print(vocab.reverse_numericalize(text[0]))
+    # print(length[0])
+    # print(vocab.get_padding_index())
+    # print(rationale)

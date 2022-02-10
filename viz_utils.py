@@ -341,7 +341,6 @@ def scatter_it(df, meta, hue_metric="correct", show_hist=True):
         color="black",
         va="center",
         ha="center",
-        #         rotation=350,
         bbox=bb("black"),
     )
     an2 = ax0.annotate(
