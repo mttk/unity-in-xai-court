@@ -70,6 +70,9 @@ class _CaptumSubModel(torch.nn.Module):
         )
         return pred
 
+#######################################
+# Jain & Wallace attention classifier #
+#######################################
 
 class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
     def __init__(self, config, meta):
