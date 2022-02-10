@@ -10,7 +10,12 @@ from podium.vectorizers import GloVe
 
 from datasets import load_dataset
 
-from eraser.eraser_utils import load_documents, load_datasets, annotations_from_jsonl, Annotation
+from eraser.eraser_utils import (
+    load_documents,
+    load_datasets,
+    annotations_from_jsonl,
+    Annotation,
+)
 
 
 def load_embeddings(vocab, name="glove"):
@@ -56,7 +61,7 @@ class Instance:
         self.text = text
         self.label = label
         self.extras = extras
-        self.length = len(text) # text is already tokenized & filtered
+        self.length = len(text)  # text is already tokenized & filtered
 
     def set_mask(self, masked_text, masked_labels):
         # Set the masking as an attribute
@@ -71,21 +76,26 @@ class Instance:
     def __repr__(self):
         return f"{self.index}: {self.length}, {self.label}"
 
+
 def generate_eraser_rationale_mask(tokens, evidences):
-    mask = torch.zeros(len(tokens)) # zeros for where you can attend to
+    mask = torch.zeros(len(tokens))  # zeros for where you can attend to
 
     any_evidence_left = False
     for ev in evidences:
-        if ev.start_token > len(tokens) or ev.end_token > len(tokens): 
+        if ev.start_token > len(tokens) or ev.end_token > len(tokens):
             continue  # evidence out of span
 
-        if not any_evidence_left: any_evidence_left = True
+        if not any_evidence_left:
+            any_evidence_left = True
         # 1. Validate
 
-        assert ev.text == ' '.join(tokens[ev.start_token:ev.end_token]), "Texts dont match; did you filter some tokens?"
+        assert ev.text == " ".join(
+            tokens[ev.start_token : ev.end_token]
+        ), "Texts dont match; did you filter some tokens?"
 
-        mask[ev.start_token:ev.end_token] = 1
+        mask[ev.start_token : ev.end_token] = 1
     return mask
+
 
 # Map this dataloader to podium Dataset classes ?
 def eraser_reader(data_root, conflate=False):
@@ -118,7 +128,8 @@ def eraser_reader(data_root, conflate=False):
             label = row.classification
             # build frequencies
             for token in document_tokens:
-                if token not in freqs: freqs[token] = 0
+                if token not in freqs:
+                    freqs[token] = 0
                 freqs[token] += 1
 
             if label not in class_map:
@@ -126,10 +137,7 @@ def eraser_reader(data_root, conflate=False):
 
             rationale_mask = generate_eraser_rationale_mask(document_tokens, evidences)
 
-            extras = {
-                'evidence': row,
-                'rationale_mask': rationale_mask
-            }
+            extras = {"evidence": row, "rationale_mask": rationale_mask}
 
             instance = Instance(idx, document_tokens, label, extras)
             examples.append(instance)
@@ -141,9 +149,8 @@ def eraser_reader(data_root, conflate=False):
 
 
 class IMDBRationale(Dataset):
-
     @staticmethod
-    def load_dataset_splits(fields, data_root='data/movies'):
+    def load_dataset_splits(fields, data_root="data/movies"):
         documents = load_documents(data_root)
         train, val, test = load_datasets(data_root)
 
@@ -151,7 +158,7 @@ class IMDBRationale(Dataset):
 
         dataset_splits = {}
 
-        for name, split in zip(['train', 'val', 'test'], [train, val, test]):
+        for name, split in zip(["train", "val", "test"], [train, val, test]):
             split_examples = []
             for idx, row in enumerate(split):
                 evidences = row.all_evidences()
@@ -166,18 +173,20 @@ class IMDBRationale(Dataset):
                 document_tokens = [token for sentence in document for token in sentence]
 
                 label = row.classification
-                rationale_mask = generate_eraser_rationale_mask(document_tokens, evidences)
+                rationale_mask = generate_eraser_rationale_mask(
+                    document_tokens, evidences
+                )
 
                 example_dict = {
-                    'id': docid,
-                    'text': ' '.join(document_tokens),
-                    'label': label,
-                    'rationale': rationale_mask.numpy()
+                    "id": docid,
+                    "text": " ".join(document_tokens),
+                    "label": label,
+                    "rationale": rationale_mask.numpy(),
                 }
 
                 example = fact.from_dict(example_dict)
                 split_examples.append(example)
-            dataset_split = Dataset(**{"examples":split_examples, "fields":fields})
+            dataset_split = Dataset(**{"examples": split_examples, "fields": fields})
             dataset_splits[name] = dataset_split
         return dataset_splits
 
@@ -185,17 +194,19 @@ class IMDBRationale(Dataset):
     def get_default_fields():
         vocab = Vocab(max_size=20000)
         fields = {
-            'id': Field("id", numericalizer=None),
-            'text': Field("text", numericalizer=vocab, include_lengths=True),
-            'rationale': Field("rationale", tokenizer=None, numericalizer=None), # shd be a boolean mask of same length as text
-            'label': LabelField("label"),
+            "id": Field("id", numericalizer=None),
+            "text": Field("text", numericalizer=vocab, include_lengths=True),
+            "rationale": Field(
+                "rationale", tokenizer=None, numericalizer=None
+            ),  # shd be a boolean mask of same length as text
+            "label": LabelField("label"),
         }
         return fields, vocab
 
 
-def load_tse(train_path="data/TSE/train.csv", 
-             test_path="data/TSE/test.csv",
-             max_size=20000):
+def load_tse(
+    train_path="data/TSE/train.csv", test_path="data/TSE/test.csv", max_size=20000
+):
 
     vocab = Vocab(max_size=max_size)
     fields = [
@@ -204,41 +215,55 @@ def load_tse(train_path="data/TSE/train.csv",
         Field("rationale", numericalizer=vocab),
         LabelField("label"),
     ]
-    train_dataset = TabularDataset(train_path, format="csv", fields=fields, skip_header=True)
-    test_dataset = TabularDataset(test_path, format="csv", fields=fields, skip_header=True)
+    train_dataset = TabularDataset(
+        train_path, format="csv", fields=fields, skip_header=True
+    )
+    test_dataset = TabularDataset(
+        test_path, format="csv", fields=fields, skip_header=True
+    )
     train_dataset.finalize_fields()
     return (train_dataset, test_dataset), vocab
+
 
 def load_imdb_rationale(
     train_path="data/movies/train.csv",
     valid_path="data/movies/dev.csv",
     test_path="data/movies/test.csv",
-    max_size=20000
+    max_size=20000,
 ):
     fields, vocab = IMDBRationale.get_default_fields()
     splits = IMDBRationale.load_dataset_splits(fields)
-    splits['train'].finalize_fields()
+    splits["train"].finalize_fields()
     return list(splits.values()), vocab
 
-class MaxLenHook():
+
+class MaxLenHook:
     def __init__(self, max_len):
         self.max_len = max_len
 
     def __call__(self, raw, tokenized):
-        return raw, tokenized[:self.max_len]
+        return raw, tokenized[: self.max_len]
+
 
 def load_imdb(
     train_path="data/IMDB/train.csv",
     valid_path="data/IMDB/dev.csv",
     test_path="data/IMDB/test.csv",
     max_size=20000,
-    max_len=200
+    max_len=200,
 ):
 
     vocab = Vocab(max_size=max_size)
+    post_hooks = []
+    if max_len:
+        post_hooks.append(MaxLenHook(max_len))
     fields = [
-        Field("text", numericalizer=vocab, include_lengths=True,
-               posttokenize_hooks=[MaxLenHook(max_len)]),
+        Field(
+            "text",
+            numericalizer=vocab,
+            include_lengths=True,
+            posttokenize_hooks=post_hooks,
+        ),
         LabelField("label"),
     ]
 
@@ -248,6 +273,7 @@ def load_imdb(
 
     train_dataset.finalize_fields()
     return (train_dataset, valid_dataset, test_dataset), vocab
+
 
 def test_load_imdb():
     splits, vocab = load_imdb(
@@ -273,13 +299,14 @@ def test_load_imdb():
 
 def test_load_imdb_rationale(conflate=True):
     if not conflate:
-        dataset_splits = eraser_reader('data/movies', conflate=conflate)
+        dataset_splits = eraser_reader("data/movies", conflate=conflate)
         instances, _, _ = dataset_splits[0]
     else:
-        instances = eraser_reader('data/movies', conflate=conflate)
+        instances = eraser_reader("data/movies", conflate=conflate)
     print(len(instances))
     print(instances[0])
-    print(instances[0].extras['rationale_mask'])
+    print(instances[0].extras["rationale_mask"])
+
 
 def test_load_tse_rationale():
     (tse_train, tse_test), vocab = load_tse()
@@ -304,7 +331,7 @@ def load_trec(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
             "text",
             numericalizer=vocab,
             include_lengths=True,
-            posttokenize_hooks=[MaxLenHook(max_seq_len)]
+            posttokenize_hooks=[MaxLenHook(max_seq_len)],
         ),
         LabelField("label"),
     ]

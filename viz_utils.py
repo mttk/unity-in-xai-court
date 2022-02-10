@@ -29,29 +29,7 @@ def load_results(base_dir="results/", dataset="IMDB", model="JWA"):
     return experiments, meta
 
 
-def results_to_df(experiments, meta, mode="last"):
-    if mode not in MODE_DICT:
-        raise ValueError(
-            f"Mode {mode} is not supported. Choose 'last' or 'best' epoch."
-        )
-
-    extract_fn = MODE_DICT[mode]
-    dfs_tr = []
-    dfs_agr = []
-    dfs_crt = []
-    for sampler, exp_set in experiments.items():
-        df_tr, df_agr, df_crt = extract_fn(exp_set, meta["interpret_pairs"])
-        df_tr["sampler"] = sampler
-        df_agr["sampler"] = sampler
-        df_crt["sampler"] = sampler
-        dfs_tr.append(df_tr)
-        dfs_agr.append(df_agr)
-        dfs_crt.append(df_crt)
-
-    new_df_tr = pd.concat(dfs_tr)
-    new_df_agr = pd.concat(dfs_agr)
-    new_df_crt = pd.concat(dfs_crt)
-
+def cartography_average(new_df_crt):
     grouped = new_df_crt.groupby(["sampler", "al_iter"])
     new_df_crt_avg = pd.DataFrame()
     new_df_crt_avg["correctness"] = grouped.correctness.agg(np.stack).apply(
@@ -63,14 +41,78 @@ def results_to_df(experiments, meta, mode="last"):
         lambda x: np.median(x, 0)
     )
     new_df_crt_avg["threshold_closeness"] = grouped.threshold_closeness.apply(np.mean)
+    return new_df_crt_avg
 
-    return new_df_tr, new_df_agr, new_df_crt_avg
+
+def results_to_df(experiments, meta, mode="last"):
+    if mode not in MODE_DICT:
+        raise ValueError(
+            f"Mode {mode} is not supported. Choose 'last' or 'best' epoch."
+        )
+
+    extract_fn = MODE_DICT[mode]
+    dfs_tr = []
+    dfs_agr = []
+    dfs_crt_train = []
+    dfs_crt_test = []
+    for sampler, exp_set in experiments.items():
+        df_tr, df_agr, df_crt_train, df_crt_test = extract_fn(
+            exp_set, meta["interpret_pairs"]
+        )
+        df_tr["sampler"] = sampler
+        df_agr["sampler"] = sampler
+        df_crt_train["sampler"] = sampler
+        df_crt_test["sampler"] = sampler
+        dfs_tr.append(df_tr)
+        dfs_agr.append(df_agr)
+        dfs_crt_train.append(df_crt_train)
+        dfs_crt_test.append(df_crt_test)
+
+    new_df_tr = pd.concat(dfs_tr)
+    new_df_agr = pd.concat(dfs_agr)
+    new_df_crt_train = pd.concat(dfs_crt_train)
+    new_df_crt_test = pd.concat(dfs_crt_test)
+
+    new_df_crt_avg_train = cartography_average(new_df_crt_train)
+    new_df_crt_avg_test = cartography_average(new_df_crt_test)
+
+    return new_df_tr, new_df_agr, new_df_crt_avg_train, new_df_crt_avg_test
+
+
+def extract_cartography(crts, exp_index, iter_vals, labeled_vals):
+    correctness = []
+    confidence = []
+    variability = []
+    forgetfulness = []
+    threshold_closeness = []
+    for crt in crts:
+        correctness.append(crt["correctness"])
+        confidence.append(crt["confidence"])
+        variability.append(crt["variability"])
+        forgetfulness.append(crt["forgetfulness"])
+        threshold_closeness.append(crt["threshold_closeness"])
+
+    df_crt = pd.DataFrame(
+        {
+            "al_iter": iter_vals,
+            "labeled": labeled_vals,
+            "correctness": correctness,
+            "confidence": confidence,
+            "variability": variability,
+            "forgetfulness": forgetfulness,
+            "threshold_closeness": threshold_closeness,
+        }
+    )
+    df_crt["experiment"] = exp_index
+    df_crt.set_index(["experiment", "al_iter"], inplace=True)
+    return df_crt
 
 
 def extract_last_epoch(exp_set, interpret_pairs):
     dfs_tr = []
     dfs_agr = []
-    dfs_crt = []
+    dfs_crt_train = []
+    dfs_crt_test = []
     for exp_index, experiment in enumerate(exp_set):
         train = experiment["train"]
         train_vals = [tr[-1]["loss"] for tr in train]
@@ -108,46 +150,30 @@ def extract_last_epoch(exp_set, interpret_pairs):
         df_agr["experiment"] = exp_index
         df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
 
-        correctness = []
-        confidence = []
-        variability = []
-        forgetfulness = []
-        threshold_closeness = []
-        for crt in experiment["cartography"]:
-            correctness.append(crt["correctness"])
-            confidence.append(crt["confidence"])
-            variability.append(crt["variability"])
-            forgetfulness.append(crt["forgetfulness"])
-            threshold_closeness.append(crt["threshold_closeness"])
-
-        df_crt = pd.DataFrame(
-            {
-                "al_iter": iter_vals,
-                "labeled": labeled_vals,
-                "correctness": correctness,
-                "confidence": confidence,
-                "variability": variability,
-                "forgetfulness": forgetfulness,
-                "threshold_closeness": threshold_closeness,
-            }
+        df_crt_train = extract_cartography(
+            experiment["cartography"]["train"], exp_index, iter_vals, labeled_vals
         )
-        df_crt["experiment"] = exp_index
-        df_crt.set_index(["experiment", "al_iter"], inplace=True)
+        df_crt_test = extract_cartography(
+            experiment["cartography"]["test"], exp_index, iter_vals, labeled_vals
+        )
 
         dfs_tr.append(df_tr)
         dfs_agr.append(df_agr)
-        dfs_crt.append(df_crt)
+        dfs_crt_train.append(df_crt_train)
+        dfs_crt_test.append(df_crt_test)
 
     new_df_tr = pd.concat(dfs_tr)
     new_df_agr = pd.concat(dfs_agr)
-    new_df_crt = pd.concat(dfs_crt)
-    return new_df_tr, new_df_agr, new_df_crt
+    new_df_crt_train = pd.concat(dfs_crt_train)
+    new_df_crt_test = pd.concat(dfs_crt_test)
+    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test
 
 
 def extract_best_epoch(exp_set, interpret_pairs):
     dfs_tr = []
     dfs_agr = []
-    dfs_crt = []
+    dfs_crt_train = []
+    dfs_crt_test = []
     for exp_index, experiment in enumerate(exp_set):
         train = experiment["train"]
         test = experiment["eval"]
@@ -192,39 +218,23 @@ def extract_best_epoch(exp_set, interpret_pairs):
         df_agr["experiment"] = exp_index
         df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
 
-        correctness = []
-        confidence = []
-        variability = []
-        forgetfulness = []
-        threshold_closeness = []
-        for crt in experiment["cartography"]:
-            correctness.append(crt["correctness"])
-            confidence.append(crt["confidence"])
-            variability.append(crt["variability"])
-            forgetfulness.append(crt["forgetfulness"])
-            threshold_closeness.append(crt["threshold_closeness"])
-
-        df_crt = pd.DataFrame(
-            {
-                "al_iter": iter_vals,
-                "correctness": correctness,
-                "confidence": confidence,
-                "variability": variability,
-                "forgetfulness": forgetfulness,
-                "threshold_closeness": threshold_closeness,
-            }
+        df_crt_train = extract_cartography(
+            [experiment["cartography"]["train"]], exp_index, iter_vals, labeled_vals
         )
-        df_crt["experiment"] = exp_index
-        df_crt.set_index(["experiment", "al_iter"], inplace=True)
+        df_crt_test = extract_cartography(
+            [experiment["cartography"]["test"]], exp_index, iter_vals, labeled_vals
+        )
 
         dfs_tr.append(df_tr)
         dfs_agr.append(df_agr)
-        dfs_crt.append(df_crt)
+        dfs_crt_train.append(df_crt_train)
+        dfs_crt_test.append(df_crt_test)
 
     new_df_tr = pd.concat(dfs_tr)
     new_df_agr = pd.concat(dfs_agr)
-    new_df_crt = pd.concat(dfs_crt)
-    return new_df_tr, new_df_agr, new_df_crt
+    new_df_crt_train = pd.concat(dfs_crt_train)
+    new_df_crt_test = pd.concat(dfs_crt_test)
+    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test
 
 
 def plot_al_accuracy(data, figsize=(12, 8), ci=90):
@@ -370,7 +380,8 @@ def scatter_it(df, meta, hue_metric="correct", show_hist=True):
 
     if show_hist:
         plot.set_title(
-            f"{meta['dataset']} Data Map - {meta['model']} model", fontsize=17
+            f"{meta['dataset']} Data Map - {meta['model']} model - {len(df)} datapoints",
+            fontsize=17,
         )
 
         # Make the histograms.
@@ -404,13 +415,14 @@ def scatter_it(df, meta, hue_metric="correct", show_hist=True):
             plot2.set_ylabel("")
 
     fig.tight_layout()
+    return fig
 
 
 def plot_cartography(
     df_crt, sampler, al_iter, meta, hue_metric="correct", show_hist=True
 ):
     df = convert_cartography_df(df_crt, sampler, al_iter)
-    scatter_it(df, meta, hue_metric=hue_metric, show_hist=show_hist)
+    return scatter_it(df, meta, hue_metric=hue_metric, show_hist=show_hist)
 
 
 def convert_cartography_df(df, sampler, al_iter):

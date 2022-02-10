@@ -87,7 +87,7 @@ if __name__ == "__main__":
                 batch_size=args.batch_size,
                 device=device,
             )
-            active_learner = ActiveLearner(sampler, train, val, device, args, meta)
+            active_learner = ActiveLearner(sampler, train, test, device, args, meta)
 
             results = active_learner.al_loop(
                 create_model_fn=initialize_model,

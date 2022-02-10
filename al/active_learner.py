@@ -88,8 +88,9 @@ class ActiveLearner:
             "train": [],
             "eval": [],
             "agreement": [],
+            "correlation": [],
             "labeled": [],
-            "cartography": [],
+            "cartography": {"train": [], "test": []},
         }
         for al_epoch in range(1, al_epochs + 1):
             logging.info(f"AL epoch: {al_epoch}/{al_epochs}")
@@ -121,7 +122,11 @@ class ActiveLearner:
             train_results = []
             eval_results = []
             agreement_results = []
-            cartography_trends = {"is_correct": [], "true_probs": []}
+            correlation_results = []
+            cartography_trends = {
+                "train": {"is_correct": [], "true_probs": []},
+                "test": {"is_correct": [], "true_probs": []},
+            }
             for epoch in range(1, self.args.epochs + 1):
                 logging.info(f"Training epoch: {epoch}/{self.args.epochs}")
                 # a) Train for one epoch
@@ -144,36 +149,34 @@ class ActiveLearner:
                     self.meta,
                     use_rationales=False,
                 )
-                scores, _ = pairwise_correlation(
+                scores, raw_correlations = pairwise_correlation(
                     intepret_result_dict["attributions"], correlations
                 )
                 agreement_results.append(scores)
+                correlation_results.append(raw_correlations)
                 logging.info("Interpretability scores", scores)
 
                 # d) Calculate epoch cartography
-                is_correct, true_probs = self._cartography_epoch(logits, y_true)
-                cartography_trends["is_correct"].append(is_correct)
-                cartography_trends["true_probs"].append(true_probs)
+                logging.info("Calculating cartography...")
+                #   i) train set
+                is_correct, true_probs = self._cartography_epoch_train(logits, y_true)
+                cartography_trends["train"]["is_correct"].append(is_correct)
+                cartography_trends["train"]["true_probs"].append(true_probs)
+
+                #   ii) test set
+                is_correct, true_probs = self._cartography_epoch_test(model)
+                cartography_trends["test"]["is_correct"].append(is_correct)
+                cartography_trends["test"]["true_probs"].append(true_probs)
 
             # 2) Dataset cartography
             logging.info("Computing dataset cartography...")
             cartography_results = {}
-            is_correct = torch.stack(cartography_trends["is_correct"])
-            true_probs = torch.stack(cartography_trends["true_probs"])
-            cartography_results["correctness"] = (
-                is_correct.sum(dim=0).squeeze().detach().numpy()
+            cartography_results["train"] = self._compute_cartography(
+                cartography_trends["train"]
             )
-            cartography_results["confidence"] = (
-                true_probs.mean(dim=0).squeeze().detach().numpy()
+            cartography_results["test"] = self._compute_cartography(
+                cartography_trends["test"]
             )
-            cartography_results["variability"] = (
-                true_probs.std(dim=0).squeeze().detach().numpy()
-            )
-            cartography_results["forgetfulness"] = compute_forgetfulness(
-                is_correct
-            ).numpy()
-            conf = cartography_results["confidence"]
-            cartography_results["threshold_closeness"] = conf * (1 - conf)
 
             # 3) Retrieve active sample.
             if not lab_mask.all():
@@ -202,7 +205,9 @@ class ActiveLearner:
             results["train"].append(train_results)
             results["eval"].append(eval_results)
             results["agreement"].append(agreement_results)
-            results["cartography"].append(cartography_results)
+            results["correlation"].append(correlation_results)
+            results["cartography"]["train"].append(cartography_results["train"])
+            results["cartography"]["test"].append(cartography_results["test"])
 
         return results
 
@@ -269,15 +274,12 @@ class ActiveLearner:
 
         with torch.inference_mode():
             for batch_num, batch in enumerate(data):
-                # if batch_num > 100: break # checking beer imitation
-
                 t = time.time()
 
                 # Unpack batch & cast to device
                 (x, lengths), y = batch.text, batch.label
 
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
-
                 logits, _ = model(x, lengths)
 
                 # Bookkeeping and cast label to float
@@ -323,7 +325,7 @@ class ActiveLearner:
 
         return accuracy + correct, confusion_matrix
 
-    def _cartography_epoch(self, logits, y_true):
+    def _cartography_epoch_train(self, logits, y_true):
         logits = logits.cpu()
         y_true = y_true.cpu()
         probs = logits_to_probs(logits)
@@ -332,3 +334,51 @@ class ActiveLearner:
         is_correct = y_pred == y_true
 
         return is_correct, true_probs
+
+    def _cartography_epoch_test(self, model):
+        model.train()
+
+        data = self.test_iter
+
+        logit_list = []
+        y_true_list = []
+        with torch.inference_mode():
+            for batch_num, batch in enumerate(data):
+                # Unpack batch & cast to device
+                (x, lengths), y = batch.text, batch.label
+
+                y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
+                y_true_list.append(y.cpu())
+
+                logits, _ = model(x, lengths)
+                logit_list.append(logits.cpu())
+
+        logit_tensor = torch.cat(logit_list)
+        y_true = torch.cat(y_true_list)
+        probs = logits_to_probs(logit_tensor)
+        true_probs = probs.gather(dim=1, index=y_true.unsqueeze(dim=1)).squeeze()
+        y_pred = torch.argmax(probs, dim=1)
+        is_correct = y_pred == y_true
+
+        return is_correct, true_probs
+
+    def _compute_cartography(self, trends):
+        cartography_results = {}
+
+        is_correct = torch.stack(trends["is_correct"])
+        true_probs = torch.stack(trends["true_probs"])
+
+        cartography_results["correctness"] = (
+            is_correct.sum(dim=0).squeeze().detach().numpy()
+        )
+        cartography_results["confidence"] = (
+            true_probs.mean(dim=0).squeeze().detach().numpy()
+        )
+        cartography_results["variability"] = (
+            true_probs.std(dim=0).squeeze().detach().numpy()
+        )
+        cartography_results["forgetfulness"] = compute_forgetfulness(is_correct).numpy()
+        conf = cartography_results["confidence"]
+        cartography_results["threshold_closeness"] = conf * (1 - conf)
+
+        return cartography_results
