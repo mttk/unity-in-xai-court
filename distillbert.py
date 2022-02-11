@@ -220,7 +220,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         output_dict["class_probabilities"] = class_probabilities
 
         if label is not None:
-            nr_classes = len(self.vocab.get_index_to_token_vocabulary("labels").values())
+            nr_classes = self.num_labels
             B, = label.shape
             label2 = label.unsqueeze(-1).expand(B, nr_classes)
             mask = torch.arange(nr_classes, device=logits.device).unsqueeze(0).expand(*class_probabilities.shape) == label2
@@ -267,7 +267,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             output_dict['loss'] = loss
             self.metrics['accuracy'](output_dict["class_probabilities"], label)
 
-        return output_dict
+        return output_dict["logits"], output_dict
 
     def forward_on_instances(self, instances: List[Instance], **kwargs) -> List[Dict[str, np.ndarray]]:
         # An exact copy of the original method, but supports kwargs

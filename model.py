@@ -153,7 +153,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
         # print(h.shape, o.shape) # m = 32, 300
         attn_weights, hidden = self.attention(h, o, o, attn_mask=m)
 
-        return attn_weights, hidden
+        return attn_weights, hidden, {}
 
     def forward_inner(self, embedded_tokens, lengths):
         attn_weights, hidden = self.encode(embedded_tokens, lengths)
