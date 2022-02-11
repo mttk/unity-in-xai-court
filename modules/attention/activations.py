@@ -1,7 +1,6 @@
 """Suite of activation functions to convert attention weights to probability distributions"""
 from overrides import overrides
 
-from allennlp.common import Registrable
 from allennlp.nn.util import replace_masked_values
 from allennlp.nn import util
 
@@ -11,10 +10,10 @@ import torch
 import torch.nn as nn
 
 
-class AttentionActivationFunction(nn.Module, Registrable):
+class AttentionActivationFunction(nn.Module):
     """Attention activation function base class"""
 
-    def forward(self, scores, mask) -> torch.Tensor:
+    def forward(self, scores, mask):
         """Map a score vector to a probability distribution"""
         raise NotImplementedError("Implement forward Model")
 
