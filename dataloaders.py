@@ -10,6 +10,8 @@ from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
 from podium.datasets.impl import SST
 
+from transformers import BertTokenizer
+
 from datasets import load_dataset
 
 from eraser.eraser_utils import (
@@ -19,6 +21,19 @@ from eraser.eraser_utils import (
     Annotation,
 )
 
+class TokenizerVocabWrapper:
+    def __init__(self, tokenizer):
+        # wrap BertTokenizer so the method signatures align with podium
+        self.tokenizer = tokenizer
+
+    def get_padding_index():
+        return self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)
+
+    def __len__(self):
+        return len(self.tokenizer)
+
+    def numericalize(self, instance):
+        return self.tokenizer.convert_tokens_to_ids(instance)
 
 def load_embeddings(vocab, name="glove"):
     if name == "glove":
@@ -193,16 +208,26 @@ class IMDBRationale(Dataset):
         return dataset_splits
 
     @staticmethod
-    def get_default_fields():
-        vocab = Vocab(max_size=20000)
+    def get_default_fields(tokenizer=None):
+        if tokenizer is None:
+            vocab = Vocab(max_size=20000)
+            text = Field("text", numericalizer=vocab, include_lengths=True)
+        else:
+            vocab = None
+            text = Field("text",
+                tokenizer=tokenizer.tokenize,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True)
+
         fields = {
             "id": Field("id", numericalizer=None),
-            "text": Field("text", numericalizer=vocab, include_lengths=True),
+            "text": text,
             "rationale": Field(
                 "rationale", tokenizer=None, numericalizer=None
             ),  # shd be a boolean mask of same length as text
             "label": LabelField("label"),
         }
+    
         return fields, vocab
 
 
@@ -228,12 +253,13 @@ def load_tse(
 
 
 def load_imdb_rationale(
+    tokenizer=None,
     train_path="data/movies/train.csv",
     valid_path="data/movies/dev.csv",
     test_path="data/movies/test.csv",
     max_size=20000,
 ):
-    fields, vocab = IMDBRationale.get_default_fields()
+    fields, vocab = IMDBRationale.get_default_fields(tokenizer)
     splits = IMDBRationale.load_dataset_splits(fields)
     splits["train"].finalize_fields()
     return list(splits.values()), vocab
@@ -274,7 +300,6 @@ def load_imdb(
     else:
         # Use BERT subword tokenization
         vocab = None
-        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
         fields = [
             Field(
                 "text",
