@@ -149,14 +149,13 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
     @classmethod
     def from_huggingface_model_name(
         cls,
-        vocab: Vocabulary,
-        model_name: str,
-        #ffn_activation: str,
-        #ffn_dropout: float,
-        #attention: Attention,
-        num_labels: int,
-        seq_classif_dropout: float
+        config,
+        meta
     ):
+        model_name = config.pretrained_model
+        seq_classif_dropout = config.seq_classif_dropout
+        num_labels = meta.num_labels
+        vocab = meta.vocab
         transformer = AutoModel.from_pretrained(model_name)
         embeddings = deepcopy(transformer.embeddings)
         encoder = DistilBertEncoder.from_huggingface_model(

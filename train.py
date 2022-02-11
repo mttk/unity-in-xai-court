@@ -18,6 +18,7 @@ from podium import BucketIterator
 from util import Config
 from dataloaders import *
 from model import *
+from distillbert import *
 from interpret import *
 from correlation_measures import *
 
@@ -37,13 +38,16 @@ dataset_loaders = {
 models = {
   'JWA': JWAttentionClassifier,
   'MLP': MLP,
+  'DBERT': DistilBertForSequenceClassification.from_huggingface_model_name,
 }
 
 def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
                         help='Data corpus: [IMDB, IMDB-rationale, TSE, TREC]')
-  parser.add_argument('--model-name', type=str, default='JWA', help='Model: [JWA, MLP]')
+  parser.add_argument('--model-name', type=str, default='JWA', help='Model: [JWA, MLP, DBERT]')
+  parser.add_argument('--pretrained_model', type=str, default='distilbert-base-uncased',
+                      help="Pretrained transformer model to load")
 
 
   # JWA arguments
@@ -75,6 +79,10 @@ def make_parser():
                         help='[USE] bidirectional encoder')
   parser.add_argument('--freeze', action='store_true',
                         help='Freeze embeddings')
+
+  # DistillBERT arguments
+  parser.add_argument('--seq_classif_dropout', type=float, default=0.1,
+                        help='Decoder dropout after *BERT encoding')
 
   # Interpreters & corr measures
   parser.add_argument("--interpreters", nargs="+",
@@ -369,7 +377,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
         model.parameters(),
         args.lr, weight_decay=args.l2)
 
-  train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
+  # train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
+  train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True, indices=indices)
   val_iter = make_iterable(val_dataset, device, batch_size=args.batch_size)
   test_iter = make_iterable(test_dataset, device, batch_size=args.batch_size)
 
@@ -406,50 +415,49 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
     inst_mask = np.full(len(train_dataset), True) # Instances to use for training
 
-    for ul_epoch in range(1, ul_epochs + 1):
+    #for ul_epoch in range(1, ul_epochs + 1):
       # Reduce dataset post-train loop
 
-      indices, *_ = np.where(inst_mask)
-      train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True, indices=indices)
+    #  indices, *_ = np.where(inst_mask)
 
-      for epoch in range(1, args.epochs + 1):
+    for epoch in range(1, args.epochs + 1):
 
-        train(model, train_iter, optimizer, criterion, args, meta)
+      train(model, train_iter, optimizer, criterion, args, meta)
 
-        # Compute importance scores for tokens on all batches of validation split
+      # Compute importance scores for tokens on all batches of validation split
 
-        result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
-        # print(result_dict['rationales'])
-        # Compute pairwise correlations between interpretability methods
-        scores, raw_correlations = pairwise_correlation(result_dict['attributions'], correlations)
+      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
+      # print(result_dict['rationales'])
+      # Compute pairwise correlations between interpretability methods
+      scores, raw_correlations = pairwise_correlation(result_dict['attributions'], correlations)
 
-        if use_rationales:
-          rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
-          pprint(rationale_scores)
+      if use_rationales:
+        rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+        pprint(rationale_scores)
 
-        print(f"Epoch={epoch}, evaluating on validation set:")
-        result_dict = evaluate(model, val_iter, args, meta)
-        loss = result_dict['loss']
+      print(f"Epoch={epoch}, evaluating on validation set:")
+      result_dict = evaluate(model, val_iter, args, meta)
+      loss = result_dict['loss']
 
-        if best_valid_loss is None or loss < best_valid_loss:
-          best_valid_loss = loss
-          best_valid_epoch = epoch
-          best_model = copy.deepcopy(model) # clone params of model, this might be slow, maybe dump?
+      if best_valid_loss is None or loss < best_valid_loss:
+        best_valid_loss = loss
+        best_valid_epoch = epoch
+        best_model = copy.deepcopy(model) # clone params of model, this might be slow, maybe dump?
 
 
       # Run on train set without shuffling so instance indices are preserved
-      train_interpret_scores = interpret_evaluate(interpreters, model, train_iter_noshuf, args, meta, use_rationales=use_rationales)
-      train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
+      # train_interpret_scores = interpret_evaluate(interpreters, model, train_iter_noshuf, args, meta, use_rationales=use_rationales)
+      # train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
 
-      for k in train_raw_correlations:
-        per_instance_agreement = train_raw_correlations[k]
+      # for k in train_raw_correlations:
+      #   per_instance_agreement = train_raw_correlations[k]
 
 
-      min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
-      worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
-      worst_agreement = correct_for_missing(worst_agreement, inst_mask)
+      # min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
+      # worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
+      # worst_agreement = correct_for_missing(worst_agreement, inst_mask)
       # Mask out the worst indices
-      inst_mask[worst_agreement] = False
+      # inst_mask[worst_agreement] = False
 
       #sys.exit(-1)
 
