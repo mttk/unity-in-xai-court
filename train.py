@@ -192,7 +192,7 @@ def correct_for_missing(indices, mask):
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
-  if not hasattr(meta, "embeddings") or args.model_name == 'DBERT':
+  if not hasattr(meta, "embeddings") and args.model_name != 'DBERT':
     # Cache embeddings
     meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name='glove'))
   model_cls = models[args.model_name]
