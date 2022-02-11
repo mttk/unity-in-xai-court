@@ -132,7 +132,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         # DistillBert
         self.encoder = meta.encoder
-        self.num_labels = meta..num_labels
+        self.num_labels = meta.num_labels
         self.seq_classif_dropout = config.seq_classif_dropout
 
         self.pre_classifier = nn.Linear(self.encoder.dim, self.encoder.dim)
