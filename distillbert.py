@@ -44,7 +44,7 @@ class DistilBertEncoder(torch.nn.Module):
         ffn_activation: str = "gelu",
         ffn_dropout: float = 0.2,
         attention: Attention = MultiHeadSelfAttention(
-            n_heads = 6,
+            n_heads = 12,
             dim = 768,
             activation_function = SoftmaxActivation(),
             dropout = 0.2
