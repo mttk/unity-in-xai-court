@@ -476,12 +476,20 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 def main():
   args = make_parser()
   dataloader = dataset_loaders[args.data]
+
+
+
   splits, vocab = dataloader()
   if len(splits) == 3:
     train, val, test = splits
   else:
     train, test = splits
     val = test # Change sometime later
+
+  # If we're using bert, use the predefined Vocab instead
+  if args.model_name == 'DBERT':
+    from transformers import BertTokenizer
+    vocab = BertTokenizer.from_pretrained(args.pretrained_model)
 
   meta = Config()
   meta.num_labels = 2
