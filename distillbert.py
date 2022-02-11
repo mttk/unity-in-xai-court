@@ -229,9 +229,10 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
     def forward(
         self,
-        tokens: TextFieldTensors,
-        label: Optional[torch.Tensor] = None,
-        output_attentions: Optional[List[AttentionAnalysisMethods]] = None
+        tokens,
+        lengths,
+        label = None,
+        output_attentions = None
     ) -> JsonDict:
         # https://docs.python-guide.org/writing/gotchas/#mutable-default-arguments
         if output_attentions is None:
