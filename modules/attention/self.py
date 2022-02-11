@@ -120,6 +120,7 @@ class MultiHeadSelfAttention(Attention):
         weights = self.dropout(weights)  # (bs, n_heads, q_length, k_length)
 
         if head_mask is not None:
+            print(head_mask.shape, weights.shape)
             weights = weights * head_mask # (bs, n_heads, q_length, k_length)
 
         fx = shape(torch.matmul(v, self.out_lin.weight)) # (bs, n_heads, k_length, dim_per_head)
