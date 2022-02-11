@@ -26,7 +26,7 @@ class TokenizerVocabWrapper:
         # wrap BertTokenizer so the method signatures align with podium
         self.tokenizer = tokenizer
 
-    def get_padding_index():
+    def get_padding_index(self):
         return self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)
 
     def __len__(self):
