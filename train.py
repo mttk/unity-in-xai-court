@@ -14,6 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from podium import BucketIterator
+from transformers import BertTokenizer
 
 from util import Config
 from dataloaders import *
@@ -21,6 +22,7 @@ from model import *
 from distillbert import *
 from interpret import *
 from correlation_measures import *
+
 
 from sklearn.metrics import average_precision_score
 
@@ -477,19 +479,20 @@ def main():
   args = make_parser()
   dataloader = dataset_loaders[args.data]
 
+  tokenizer = None
+  # If we're using bert, use the pretrained tokenizer instead
+  if args.model_name == 'DBERT':
+    tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
+
+  splits, vocab = dataloader(pretrained_tokenizer=tokenizer)
 
 
-  splits, vocab = dataloader()
+
   if len(splits) == 3:
     train, val, test = splits
   else:
     train, test = splits
     val = test # Change sometime later
-
-  # If we're using bert, use the predefined Vocab instead
-  if args.model_name == 'DBERT':
-    from transformers import BertTokenizer
-    vocab = BertTokenizer.from_pretrained(args.pretrained_model)
 
   meta = Config()
   meta.num_labels = 2

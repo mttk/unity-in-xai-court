@@ -248,6 +248,7 @@ class MaxLenHook:
 
 
 def load_imdb(
+    tokenizer=None,
     train_path="data/IMDB/train.csv",
     valid_path="data/IMDB/dev.csv",
     test_path="data/IMDB/test.csv",
@@ -255,19 +256,35 @@ def load_imdb(
     max_len=200,
 ):
 
-    vocab = Vocab(max_size=max_size)
     post_hooks = []
     if max_len:
         post_hooks.append(MaxLenHook(max_len))
-    fields = [
-        Field(
-            "text",
-            numericalizer=vocab,
-            include_lengths=True,
-            posttokenize_hooks=post_hooks,
-        ),
-        LabelField("label"),
-    ]
+
+    if tokenizer is None:
+        vocab = Vocab(max_size=max_size)
+        fields = [
+            Field(
+                "text",
+                numericalizer=vocab,
+                include_lengths=True,
+                posttokenize_hooks=post_hooks,
+            ),
+            LabelField("label"),
+        ]
+    else:
+        # Use BERT subword tokenization
+        vocab = None
+        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+        fields = [
+            Field(
+                "text",
+                tokenizer=tokenizer.tokenize,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True,
+                posttokenize_hooks=post_hooks,
+            ),
+            LabelField("label"),
+        ]
 
     train_dataset = TabularDataset(train_path, format="csv", fields=fields)
     valid_dataset = TabularDataset(valid_path, format="csv", fields=fields)
@@ -326,17 +343,32 @@ def test_load_tse_rationale():
     print(vocab.get_padding_index())
 
 
-def load_sst(max_vocab_size=20_000, max_seq_len=200):
-    vocab = Vocab(max_size=max_vocab_size)
-    fields = [
-        Field(
-            "text",
-            numericalizer=vocab,
-            include_lengths=True,
-            posttokenize_hooks=[MaxLenHook(max_seq_len)],
-        ),
-        LabelField("label"),
-    ]
+def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
+    if tokenizer is None:
+        vocab = Vocab(max_size=max_vocab_size)
+        fields = [
+            Field(
+                "text",
+                numericalizer=vocab,
+                include_lengths=True,
+                posttokenize_hooks=[MaxLenHook(max_seq_len)],
+            ),
+            LabelField("label"),
+        ]
+    else:
+        # Use BERT subword tokenization
+        vocab = None
+        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+        fields = [
+            Field(
+                "text",
+                tokenizer=tokenizer.tokenize,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True,
+                posttokenize_hooks=[MaxLenHook(max_seq_len)],
+            ),
+            LabelField("label"),
+        ]
     train, val, test = SST.get_dataset_splits(fields=fields)
     return (train, val, test), vocab
 
