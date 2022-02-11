@@ -15,7 +15,6 @@ from allennlp.data import TextFieldTensors, Vocabulary, Instance
 from allennlp.nn import util
 from allennlp.training.metrics import CategoricalAccuracy
 import numpy as np
-from overrides import overrides
 import torch
 from torch import Tensor
 import torch.nn as nn
@@ -102,7 +101,6 @@ class DistilBertEncoder(torch.nn.Module):
 
         return encoder
 
-    @overrides
     def forward(
         self,
         attention_mask: torch.Tensor,
@@ -180,7 +178,6 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         return cls(config, meta)
 
-    @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {
             'accuracy': self.metrics['accuracy'].get_metric(reset=reset)
@@ -227,7 +224,6 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             prediction = class_probabilities[mask].unsqueeze(-1) # (bs, 1)
             return prediction
 
-    @overrides
     def forward(
         self,
         tokens: TextFieldTensors,
@@ -267,7 +263,6 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         return output_dict
 
-    @overrides
     def forward_on_instances(self, instances: List[Instance], **kwargs) -> List[Dict[str, np.ndarray]]:
         # An exact copy of the original method, but supports kwargs
         batch_size = len(instances)
@@ -296,11 +291,9 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
                     instance_output[name] = batch_element
             return instance_separated_output
 
-    @overrides
     def forward_on_instance(self, instance: Instance, **kwargs) -> Dict[str, np.ndarray]:
         return self.forward_on_instances([instance], **kwargs)[0]
 
-    @overrides
     def make_output_human_readable(self, output_dict: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         '''
         Does a simple argmax over the class probabilities, converts indices to string labels, and
@@ -309,11 +302,9 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         output_dict['label'] = torch.argmax(output_dict['class_probabilities'], dim=1)
         return output_dict
 
-    @overrides
     def captum_sub_model(self):
         return _CaptumSubModel(self)
 
-    @overrides
     def instances_to_captum_inputs(self, inputs, lengths, labels=None):
         with torch.no_grad():
             embedded_tokens = self.embeddings(inputs)
