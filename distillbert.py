@@ -185,8 +185,12 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
     def forward_inner(self, embedded_tokens,
         attention_mask, label, output_attentions, output_dict):
         # (bs, seq_len) -> (num_hidden_layers, batch, num_heads, seq_length, seq_length)
+        print(head_mask)
+        print(head_mask.shape)
         head_mask = attention_mask.unsqueeze(0).unsqueeze(2).unsqueeze(-1)
         head_mask = head_mask.expand(self.encoder.n_layers, -1, self.encoder.n_heads, -1, attention_mask.shape[1])
+        print(head_mask.shape)
+
         encoder_output = self.encoder(
             inputs_embeds=embedded_tokens,
             attention_mask=attention_mask,
