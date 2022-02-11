@@ -130,10 +130,19 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # DistillBert
         self.encoder = meta.encoder
         self.num_labels = meta.num_labels
+        # Labels = labels; targets = output probs
+        if self.num_labels == 2:
+            self.num_targets = 1
+        else:
+            self.num_targets = self.num_labels
+
         self.seq_classif_dropout = config.seq_classif_dropout
 
         self.pre_classifier = nn.Linear(self.encoder.dim, self.encoder.dim)
-        self.classifier = nn.Linear(self.encoder.dim, self.num_labels)
+        # self.classifier = nn.Linear(self.encoder.dim, self.num_labels)
+        # Change: use BCEWithLogits and output a single value if there 
+        #         are two labels
+        self.classifier = nn.Linear(self.encoder_dim, self.num_targets)
         self.dropout = nn.Dropout(self.seq_classif_dropout)
 
         self.supported_attention_analysis_methods = [
@@ -144,7 +153,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         self.metrics = {
             'accuracy': CategoricalAccuracy()
         }
-        self.loss = torch.nn.CrossEntropyLoss()
+        self.loss = torch.nn.CrossEntropyLoss() if self.num_targets > 1 else torch.nn.BCEWithLogitsLoss()
 
     @classmethod
     def from_huggingface_model_name(
