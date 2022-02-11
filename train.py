@@ -483,9 +483,10 @@ def main():
   # If we're using bert, use the pretrained tokenizer instead
   if args.model_name == 'DBERT':
     tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
-
-  splits, vocab = dataloader(tokenizer=tokenizer)
-
+    splits, _ = dataloader(tokenizer=tokenizer)
+    vocab = TokenizerVocabWrapper(tokenizer)
+  else:
+    splits, vocab = dataloader(tokenizer=tokenizer)
 
 
   if len(splits) == 3:
