@@ -71,9 +71,9 @@ class DistilBertEncoder(torch.nn.Module):
     @classmethod
     def from_huggingface_model(cls,
         model: PreTrainedModel,
-        ffn_activation: str,
-        ffn_dropout: float,
-        attention: Attention
+        #ffn_activation: str,
+        #ffn_dropout: float,
+        #attention: Attention
     ):
         config = model.config
         encoder = cls(
@@ -81,9 +81,9 @@ class DistilBertEncoder(torch.nn.Module):
             n_heads=config.n_heads,
             dim=config.dim,
             hidden_dim=config.hidden_dim,
-            ffn_activation=ffn_activation,
-            ffn_dropout=ffn_dropout,
-            attention=attention
+            #ffn_activation=ffn_activation,
+            #ffn_dropout=ffn_dropout,
+            #attention=attention
         )
         # After creating the encoder, we copy weights over from the transformer.  This currently
         # requires that the internal structure of the text side of this encoder *exactly matches*
