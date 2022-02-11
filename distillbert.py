@@ -19,8 +19,7 @@ from overrides import overrides
 import torch
 from torch import Tensor
 import torch.nn as nn
-from transformers.modeling_auto import AutoModel
-from transformers.modeling_utils import PreTrainedModel
+from transformers import AutoModel, PreTrainedModel
 
 # Local imports
 from model import CaptumCompatible
