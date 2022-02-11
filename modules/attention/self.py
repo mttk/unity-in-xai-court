@@ -64,7 +64,6 @@ class MultiHeadSelfAttention(Attention):
         self.dim = attention_head_size * self.n_heads
         self.pruned_heads = self.pruned_heads.union(heads)
 
-    @overrides
     def forward(
         self,
         query: torch.Tensor,
