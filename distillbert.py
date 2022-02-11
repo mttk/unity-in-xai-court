@@ -151,19 +151,19 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         cls,
         vocab: Vocabulary,
         model_name: str,
-        ffn_activation: str,
-        ffn_dropout: float,
-        attention: Attention,
+        #ffn_activation: str,
+        #ffn_dropout: float,
+        #attention: Attention,
         num_labels: int,
         seq_classif_dropout: float
     ):
         transformer = AutoModel.from_pretrained(model_name)
         embeddings = deepcopy(transformer.embeddings)
         encoder = DistilBertEncoder.from_huggingface_model(
-            model=transformer,
-            ffn_activation=ffn_activation,
-            ffn_dropout=ffn_dropout,
-            attention=attention
+            model=transformer
+            #ffn_activation=ffn_activation,
+            #ffn_dropout=ffn_dropout,
+            #attention=attention
         )
 
         # Just to be compatible with the config/meta model signature
