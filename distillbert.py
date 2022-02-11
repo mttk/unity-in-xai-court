@@ -319,7 +319,6 @@ class _CaptumSubModel(torch.nn.Module):
         super().__init__()
         self.model = model
 
-    @overrides
     def forward(self, *inputs):
         # (embedded_tokens, attention_mask, label, output_dict)
         inputs_no_attention = inputs[:3]+(None,)+inputs[3:]
