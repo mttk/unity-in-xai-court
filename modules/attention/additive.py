@@ -15,7 +15,6 @@ from .attention import Attention, AttentionAnalysisMethods
 from .activations import AttentionActivationFunction
 
 
-@Attention.register('additive_basic')
 class AdditiveAttentionBasic(Attention):
     """
     Query-less additive attention module variant as described by Bahdanau et al. 2015 (arXiv 1409.0473)
@@ -83,7 +82,6 @@ class AdditiveAttentionBasic(Attention):
             return (context,)
 
 
-@Attention.register('additive_query')
 class AdditiveAttentionQuery(Attention):
     """
     Full additive attention module variant as described by Bahdanau et al. 2015 (arXiv 1409.0473)

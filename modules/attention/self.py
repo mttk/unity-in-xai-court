@@ -2,7 +2,6 @@
 Self attention modules per Vaswani et al. 2017 (arXiv 1706.03762)
 """
 import math
-from overrides import overrides
 from typing import List, Optional, Tuple
 
 from allennlp.common import JsonDict
