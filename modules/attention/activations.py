@@ -14,7 +14,7 @@ import torch.nn as nn
 class AttentionActivationFunction(nn.Module, Registrable):
     """Attention activation function base class"""
 
-    def forward(self, **kwargs) -> torch.Tensor:
+    def forward(self, scores, mask) -> torch.Tensor:
         """Map a score vector to a probability distribution"""
         raise NotImplementedError("Implement forward Model")
 
