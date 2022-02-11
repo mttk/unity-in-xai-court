@@ -272,6 +272,6 @@ class AttentionFlow(AttentionAggregator):
 class Attention(nn.Module, Registrable):
     """Attention module base class"""
 
-    def forward(self, **kwargs) -> torch.Tensor:
+    def forward(self, **kwargs):
         """Perform module forward pass"""
         raise NotImplementedError("Implement forward Model")

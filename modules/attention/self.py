@@ -13,8 +13,6 @@ from transformers.modeling_utils import prune_linear_layer
 from .attention import Attention, AttentionAnalysisMethods
 from .activations import AttentionActivationFunction
 
-
-@Attention.register('multihead_self')
 class MultiHeadSelfAttention(Attention):
     """Multi-head attention allows the model to jointly attend to information from different representation
        subspaces at different positions (Vaswani et al. 2017).
@@ -76,7 +74,7 @@ class MultiHeadSelfAttention(Attention):
         mask: torch.Tensor,
         head_mask: Optional[torch.Tensor] = None,
         output_attentions: Optional[List[AttentionAnalysisMethods]] = None
-    ) -> Tuple[torch.Tensor, JsonDict]:
+    ):
         """
         Parameters
         ----------
