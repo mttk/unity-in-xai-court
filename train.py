@@ -45,7 +45,7 @@ def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
                         help='Data corpus: [IMDB, IMDB-rationale, TSE, TREC]')
-  parser.add_argument('--model-name', type=str, default='JWA', help='Model: [JWA, MLP, DBERT]')
+  parser.add_argument('--model_name', type=str, default='JWA', help='Model: [JWA, MLP, DBERT]')
   parser.add_argument('--pretrained_model', type=str, default='distilbert-base-uncased',
                       help="Pretrained transformer model to load")
 
@@ -378,7 +378,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
         args.lr, weight_decay=args.l2)
 
   # train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
-  train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True, indices=indices)
+  train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True)
   val_iter = make_iterable(val_dataset, device, batch_size=args.batch_size)
   test_iter = make_iterable(test_dataset, device, batch_size=args.batch_size)
 
