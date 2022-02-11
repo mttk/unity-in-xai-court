@@ -14,7 +14,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from podium import BucketIterator
-from transformers import BertTokenizer
+from transformers import DistilBertTokenizer
 
 from util import Config
 from dataloaders import *
@@ -482,7 +482,7 @@ def main():
   tokenizer = None
   # If we're using bert, use the pretrained tokenizer instead
   if args.model_name == 'DBERT':
-    tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
+    tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
 
   splits, vocab = dataloader(tokenizer=tokenizer)
 
