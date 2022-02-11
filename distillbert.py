@@ -10,9 +10,8 @@ import math
 from typing import Dict, List, Optional, Iterable, Union
 
 from allennlp.data.batch import Batch
-from allennlp.common import FromParams, JsonDict
+from allennlp.common import JsonDict
 from allennlp.data import TextFieldTensors, Vocabulary, Instance
-from allennlp.models.model import Model
 from allennlp.nn import util
 from allennlp.training.metrics import CategoricalAccuracy
 import numpy as np
@@ -30,13 +29,14 @@ from modules.attention.activations import SoftmaxActivation
 from modules.attention.attention import Attention, AttentionAnalysisMethods
 from modules.attention.self import MultiHeadSelfAttention
 
+from util import Config
 
 ################################
 # DistillBert based classifier #
 ################################
 # Code mainly taken from court-of-xai; in turn taken from huggingface/transformers
 
-class DistilBertEncoder(torch.nn.Module, FromParams):
+class DistilBertEncoder(torch.nn.Module):
     def __init__(
         self,
         n_layers: int = 6,
@@ -121,21 +121,19 @@ class DistilBertEncoder(torch.nn.Module, FromParams):
         )
 
 
-class DistilBertForSequenceClassification(Model, CaptumCompatible):
-    def __init__(
-        self,
-        vocab: Vocabulary,
-        embeddings: Embeddings,
-        encoder: DistilBertEncoder,
-        num_labels: int,
-        seq_classif_dropout: float
-    ):
-        super().__init__(vocab)
+class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
+    def __init__(self, config, meta):
+        super().__init__()
+        self.vocab = meta.vocab
 
-        self.embeddings = embeddings
-        self.encoder = encoder
-        self.num_labels = num_labels
-        self.seq_classif_dropout = seq_classif_dropout
+        # Positional embeddings + token embeddings
+        # self.embedding_dim = config.embedding_dim
+        self.embeddings = meta.embeddings
+
+        # DistillBert
+        self.encoder = meta.encoder
+        self.num_labels = meta..num_labels
+        self.seq_classif_dropout = config.seq_classif_dropout
 
         self.pre_classifier = nn.Linear(self.encoder.dim, self.encoder.dim)
         self.classifier = nn.Linear(self.encoder.dim, self.num_labels)
@@ -170,13 +168,18 @@ class DistilBertForSequenceClassification(Model, CaptumCompatible):
             ffn_dropout=ffn_dropout,
             attention=attention
         )
-        return cls(
-            vocab=vocab,
-            embeddings=embeddings,
-            encoder=encoder,
-            num_labels=num_labels,
-            seq_classif_dropout=seq_classif_dropout
-        )
+
+        # Just to be compatible with the config/meta model signature
+        config = Config()
+        config.seq_classif_dropout = seq_classif_dropout
+
+        meta = Config()
+        meta.vocab = vocab
+        meta.embeddings = embeddings
+        meta.encoder = encoder
+        meta.num_labels = num_labels
+
+        return cls(config, meta)
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
@@ -184,13 +187,8 @@ class DistilBertForSequenceClassification(Model, CaptumCompatible):
             'accuracy': self.metrics['accuracy'].get_metric(reset=reset)
         }
 
-    def forward_inner(self,
-        embedded_tokens: torch.Tensor,
-        attention_mask: torch.Tensor,
-        label: Union[torch.Tensor, None],
-        output_attentions: List[AttentionAnalysisMethods],
-        output_dict: JsonDict
-    ) -> torch.Tensor:
+    def forward_inner(self, embedded_tokens,
+        attention_mask, label, output_attentions, output_dict):
         # (bs, seq_len) -> (num_hidden_layers, batch, num_heads, seq_length, seq_length)
         head_mask = attention_mask.unsqueeze(0).unsqueeze(2).unsqueeze(-1)
         head_mask = head_mask.expand(self.encoder.n_layers, -1, self.encoder.n_heads, -1, attention_mask.shape[1])
@@ -202,8 +200,9 @@ class DistilBertForSequenceClassification(Model, CaptumCompatible):
         )
 
         hidden_state = encoder_output[0]  # (bs, seq_len, dim)
-        pooled_output = hidden_state[:, 0]  # (bs, dim)
+        pooled_output = hidden_state[:, 0]  # (bs, dim) # CLS Token
 
+        # Single hidden layer decoder
         pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
         pooled_output = nn.ReLU()(pooled_output)  # (bs, dim)
         pooled_output = self.dropout(pooled_output)  # (bs, dim)
@@ -242,10 +241,13 @@ class DistilBertForSequenceClassification(Model, CaptumCompatible):
 
         output_dict = {}
 
-        input_ids = tokens["tokens"]["token_ids"] # (bs, seq_len)
-        attention_mask = util.get_text_field_mask(tokens) # (bs, seq_len)
+        # input_ids = tokens["tokens"]["token_ids"] # (bs, seq_len)
+        # attention_mask = util.get_text_field_mask(tokens) # (bs, seq_len)
 
-        embedding_output = self.embeddings(input_ids) # (bs, seq_len, dim)
+        # Create padding mask
+        pad_idx = self.vocab.get_padding_index()
+        attention_mask = (tokens == pad_idx).long()
+        embedding_output = self.embeddings(tokens) # (bs, seq_len, dim)
 
         prediction = self.forward_inner(
             embedded_tokens=embedding_output,
@@ -313,25 +315,13 @@ class DistilBertForSequenceClassification(Model, CaptumCompatible):
         return _CaptumSubModel(self)
 
     @overrides
-    def get_field_names(self) -> Iterable[str]:
-        # We already assume a field called tokens in forward, so we do so here too.
-        return ('tokens',)
-
-    @overrides
-    def instances_to_captum_inputs(self, labeled_instances):
-        batch_size = len(labeled_instances)
+    def instances_to_captum_inputs(self, inputs, lengths, labels=None):
         with torch.no_grad():
-            cuda_device = self._get_prediction_device()
-            batch = Batch(labeled_instances)
-            batch.index_instances(self.vocab)
-            model_input = util.move_to_device(batch.as_tensor_dict(), cuda_device)
-            input_ids = model_input["tokens"]["tokens"]["token_ids"]
-            label = model_input["label"]
-            attention_mask = model_input["tokens"]["tokens"]["mask"]
-            embedded_tokens = self.embeddings(input_ids)
+            embedded_tokens = self.embeddings(inputs)
             output_dict = {}
             output_dict["embedding"] = embedded_tokens
-            return (embedded_tokens,), None, (attention_mask, label, output_dict)
+            attention_mask = (tokens == pad_idx).long()
+            return (embedded_tokens,), None, (attention_mask, labels, output_dict)
 
 class _CaptumSubModel(torch.nn.Module):
 
