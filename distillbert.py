@@ -236,6 +236,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             mask = torch.arange(nr_classes, device=logits.device).unsqueeze(0).expand(*class_probabilities.shape) == label2
             prediction = class_probabilities[mask].unsqueeze(-1) # (bs, 1)
             return prediction
+        return class_probabilities
 
     def forward(
         self,
@@ -243,7 +244,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         lengths,
         label = None,
         output_attentions = None
-    ) -> JsonDict:
+    ):
         # https://docs.python-guide.org/writing/gotchas/#mutable-default-arguments
         if output_attentions is None:
             output_attentions = []
