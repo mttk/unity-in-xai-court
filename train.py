@@ -334,7 +334,7 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
       labels = None if meta.num_targets == 1 and args.model_name != 'DBERT' else y.squeeze()
       batch_attributions = interpreter.interpret(x, lengths, labels=labels)
       batch_attributions = batch_attributions.detach().cpu().numpy()
-      print(batch_attributions)
+      # print(batch_attributions)
 
       # attributions[k].extend(batch_attributions)
       # Select only non-padding attributions
