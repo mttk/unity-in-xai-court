@@ -227,9 +227,9 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
                 output_dict[analysis_method] = torch.stack(attentions[analysis_method], dim=1)
 
         if self.num_targets == 1:
-            print("[L]", logits.isnan().any())
+            # print("[L]", logits.isnan().any())
             class_probabilities = torch.nn.Sigmoid()(logits)
-            print("[C]", class_probabilities.isnan().any())
+            # print("[C]", class_probabilities.isnan().any())
             
         else:
             class_probabilities = torch.nn.Softmax(dim=-1)(logits)
