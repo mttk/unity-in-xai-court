@@ -236,11 +236,14 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             # Has to be not-None for captum interpret
             if self.num_targets == 1:
                 # Binary case: p * L + (1-p) * (1-L)
-                print(class_probabilities.shape)
+                p = class_probabilities.squeeze()
+                print(p.shape)
                 print(label.shape)
-                print((class_probabilities * label).shape)
-                correct_class_pred = class_probabilities * label + (1. - class_probabilities) * (1 - label)
-                print(correct_class_pred, '\n', class_probabilities, '\n', label)
+                print((p * label).shape)
+                print(((1.- p) * (1 - label)).shape)
+                
+                correct_class_pred = p * label + (1. - p) * (1 - label)
+                print(correct_class_pred, '\n', p, '\n', label)
                 return correct_class_pred
             else:
                 # Multiclass case
