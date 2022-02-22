@@ -228,11 +228,11 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         if self.num_targets == 1:
             class_probabilities = torch.nn.Sigmoid()(logits)
-            if label is not None:
-                print("[L]", logits.isnan().any())
-                print("[C]", class_probabilities.isnan().any())
-                print("[L]", logits)
-                print("[C]", class_probabilities)
+            #if label is not None:
+            #print("[L]", logits.isnan().any())
+            #print("[C]", class_probabilities.isnan().any())
+            #print("[L]", logits)
+            #print("[C]", class_probabilities)
 
         else:
             class_probabilities = torch.nn.Softmax(dim=-1)(logits)
@@ -249,13 +249,13 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
                 #print(((1.- p) * (1 - label)).shape)
 
                 correct_class_pred = p * label + (1. - p) * (1 - label)
-                print("Debug probs")
-                print(p)
-                print(p * label)
-                print((1. - p) * (1 - label))
-                print(correct_class_pred)
+                #print("Debug probs")
+                #print(p)
+                #print(p * label)
+                #print((1. - p) * (1 - label))
+                #print(correct_class_pred)
                 #print(correct_class_pred, '\n', p, '\n', label)
-                print(correct_class_pred.shape)
+                #print(correct_class_pred.shape)
                 return correct_class_pred
             else:
                 # Multiclass case
