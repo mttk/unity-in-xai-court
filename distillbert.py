@@ -226,16 +226,28 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             for analysis_method in output_attentions:
                 output_dict[analysis_method] = torch.stack(attentions[analysis_method], dim=1)
 
-        class_probabilities = torch.nn.Softmax(dim=-1)(logits)
+        if self.num_targets == 1:
+            class_probabilities = torch.nn.Sigmoid(dim=-1)(logits)
+        else:
+            class_probabilities = torch.nn.Softmax(dim=-1)(logits)
         output_dict["class_probabilities"] = class_probabilities
 
         if label is not None:
-            nr_classes = self.num_labels
-            B, = label.shape
-            label2 = label.unsqueeze(-1).expand(B, nr_classes)
-            mask = torch.arange(nr_classes, device=logits.device).unsqueeze(0).expand(*class_probabilities.shape) == label2
-            prediction = class_probabilities[mask].unsqueeze(-1) # (bs, 1)
-            return prediction
+            if self.num_targets == 1:
+                correct_class_pred = class_probabilities * label + (1. - class_probabilities) * (1 - label)
+                print(correct_class_pred, '\n', class_probabilities, '\n', label)
+                return correct_class_pred
+            else:
+                # Multiclass case
+                nr_classes = self.num_labels
+                B, = label.shape
+                # Copy labels nr_classes times ([0, 1] -> [[0,0],[1,1]])
+                label2 = label.unsqueeze(-1).expand(B, nr_classes)
+                # Obtain prediction probabilities for _correct class_
+                mask = torch.arange(nr_classes, device=logits.device).unsqueeze(0).expand(*class_probabilities.shape) == label2
+                # Probability of correct class
+                prediction = class_probabilities[mask].unsqueeze(-1) # (bs, 1)
+                return prediction
 
     def forward(
         self,
