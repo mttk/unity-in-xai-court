@@ -479,7 +479,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   results = {}
   results['loss'] = loss
 
-  best_model.rnn.flatten_parameters()
+  if args.model_name == 'JWA':
+    best_model.rnn.flatten_parameters()
 
   best_model_pack = (best_model, criterion, optimizer)
   return results, best_model_pack
