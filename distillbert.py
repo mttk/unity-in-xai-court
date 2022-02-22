@@ -246,6 +246,11 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
                 #print(((1.- p) * (1 - label)).shape)
 
                 correct_class_pred = p * label + (1. - p) * (1 - label)
+                print("Debug probs")
+                print(p)
+                print(p * label)
+                print((1. - p) * (1 - label))
+                print(correct_class_pred)
                 #print(correct_class_pred, '\n', p, '\n', label)
                 print(correct_class_pred.shape)
                 return correct_class_pred
