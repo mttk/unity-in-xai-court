@@ -284,7 +284,7 @@ def train(model, data, optimizer, criterion, args, meta):
     t = time.time()
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
-    print("Lens", lengths)
+    # print("Lens", lengths)
 
     y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
