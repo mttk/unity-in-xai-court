@@ -233,8 +233,12 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         output_dict["class_probabilities"] = class_probabilities
 
         if label is not None:
+            # Has to be not-None for captum interpret
             if self.num_targets == 1:
                 # Binary case: p * L + (1-p) * (1-L)
+                print(class_probabilities.shape)
+                print(label.shape)
+                print((class_probabilities * label).shape)
                 correct_class_pred = class_probabilities * label + (1. - class_probabilities) * (1 - label)
                 print(correct_class_pred, '\n', class_probabilities, '\n', label)
                 return correct_class_pred
