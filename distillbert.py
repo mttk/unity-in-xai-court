@@ -333,7 +333,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             _, T = inputs.shape # get max T
             attention_mask = torch.arange(0, T, device=inputs.device)[None, :] >= lengths[:, None]
             attention_mask = attention_mask.long()
-            return (embedded_tokens,), None, (attention_mask, labels, output_dict)
+            return embedded_tokens, None, (attention_mask, labels, output_dict)
 
 class _CaptumSubModel(torch.nn.Module):
 
