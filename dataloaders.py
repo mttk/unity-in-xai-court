@@ -34,7 +34,8 @@ class TokenizerVocabWrapper:
 
     def numericalize(self, instance):
         # Equivalent to .encode, but I want to delineate the steps
-        return self.tokenizer.convert_tokens_to_ids(self.tokenize(instance))
+        return self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(instance))
 
 def load_embeddings(vocab, name="glove"):
     if name == "glove":
