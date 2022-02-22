@@ -486,9 +486,9 @@ def main():
     tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
     splits, _ = dataloader(tokenizer=tokenizer)
     vocab = TokenizerVocabWrapper(tokenizer)
+    print(vocab.numericalize("A sample sentence"))
   else:
     splits, vocab = dataloader(tokenizer=tokenizer)
-
 
   if len(splits) == 3:
     train, val, test = splits

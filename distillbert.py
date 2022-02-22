@@ -126,6 +126,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # Positional embeddings + token embeddings
         # self.embedding_dim = config.embedding_dim
         self.embeddings = meta.embeddings
+        print(self.embeddings)
 
         # DistillBert
         self.encoder = meta.encoder
