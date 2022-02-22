@@ -218,6 +218,7 @@ class IMDBRationale(Dataset):
             vocab = None
             text = Field("text",
                 tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True)
 
@@ -306,6 +307,7 @@ def load_imdb(
             Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
                 posttokenize_hooks=post_hooks,
@@ -390,6 +392,7 @@ def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
             Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
                 posttokenize_hooks=[MaxLenHook(max_seq_len)],
