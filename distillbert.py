@@ -261,6 +261,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         print(tokens.max(), tokens.min())
         print(tokens.shape)
+        print(attention_mask.sum())
         embedding_output = self.embeddings(tokens) # (bs, seq_len, dim)
 
         prediction = self.forward_inner(
