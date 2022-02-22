@@ -303,6 +303,7 @@ def load_imdb(
     else:
         # Use BERT subword tokenization
         vocab = None
+        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
         fields = [
             Field(
                 "text",
