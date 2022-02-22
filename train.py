@@ -295,7 +295,7 @@ def train(model, data, optimizer, criterion, args, meta):
       # binary cross entropy, cast labels to float
       y = y.type(torch.float)
 
-    print(logits.shape, y.shape)
+    # print(logits.shape, y.shape)
     loss = criterion(logits.view(-1, meta.num_targets).squeeze(), y)
 
     total_loss += float(loss)
