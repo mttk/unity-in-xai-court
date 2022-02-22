@@ -377,7 +377,13 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   model = initialize_model(args, meta)
   model.to(device)
 
-  optimizer = torch.optim.Adam(
+  # TODO: use AdamW for DBERT as default 
+  if args.model_name == 'DBERT':
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        args.lr, weight_decay=args.l2)
+  else:
+    optimizer = torch.optim.Adam(
         model.parameters(),
         args.lr, weight_decay=args.l2)
 
