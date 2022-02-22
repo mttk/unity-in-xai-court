@@ -142,7 +142,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # self.classifier = nn.Linear(self.encoder.dim, self.num_labels)
         # Change: use BCEWithLogits and output a single value if there 
         #         are two labels
-        self.classifier = nn.Linear(self.encoder_dim, self.num_targets)
+        self.classifier = nn.Linear(self.encoder.dim, self.num_targets)
         self.dropout = nn.Dropout(self.seq_classif_dropout)
 
         self.supported_attention_analysis_methods = [
