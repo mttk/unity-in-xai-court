@@ -233,7 +233,6 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
                 print("[C]", class_probabilities.isnan().any())
                 print("[L]", logits)
                 print("[C]", class_probabilities)
-                
 
         else:
             class_probabilities = torch.nn.Softmax(dim=-1)(logits)
@@ -364,7 +363,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
             output_dict = {}
             output_dict["embedding"] = embedded_tokens
             _, T = inputs.shape # get max T
-            attention_mask = torch.arange(0, T, device=inputs.device)[None, :] >= lengths[:, None]
+            attention_mask = torch.arange(0, T, device=inputs.device)[None, :] < lengths[:, None]
             return embedded_tokens, None, (attention_mask, labels, output_dict)
 
 class _CaptumSubModel(torch.nn.Module):
