@@ -227,13 +227,14 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
                 output_dict[analysis_method] = torch.stack(attentions[analysis_method], dim=1)
 
         if self.num_targets == 1:
-            class_probabilities = torch.nn.Sigmoid(dim=-1)(logits)
+            class_probabilities = torch.nn.Sigmoid()(logits)
         else:
             class_probabilities = torch.nn.Softmax(dim=-1)(logits)
         output_dict["class_probabilities"] = class_probabilities
 
         if label is not None:
             if self.num_targets == 1:
+                # Binary case: p * L + (1-p) * (1-L)
                 correct_class_pred = class_probabilities * label + (1. - class_probabilities) * (1 - label)
                 print(correct_class_pred, '\n', class_probabilities, '\n', label)
                 return correct_class_pred
