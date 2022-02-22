@@ -331,7 +331,7 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
 
     for k, interpreter in interpreters.items():
       # print(lengths.shape)
-      labels = None if meta.num_targets == 1 else y.squeeze()
+      labels = None if meta.num_targets == 1 and args.model_name != 'DBERT' else y.squeeze()
       batch_attributions = interpreter.interpret(x, lengths, labels=labels)
       batch_attributions = batch_attributions.detach().cpu().numpy()
 
