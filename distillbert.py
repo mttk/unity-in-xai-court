@@ -258,8 +258,8 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # 0 where padding, 1 otherwise
         pad_idx = self.vocab.get_padding_index()
         attention_mask = (tokens != pad_idx).bool() # Orig impl was .long()
-        
-        print(tokens.max())
+
+        print(tokens.max(), tokens.min())
         print(tokens.shape)
         embedding_output = self.embeddings(tokens) # (bs, seq_len, dim)
 
