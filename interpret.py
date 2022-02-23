@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 from model import JWAttentionClassifier, MLP
+from distillbert import DistilBertForSequenceClassification
 
 from captum.attr import visualization
 
@@ -90,8 +91,11 @@ class Interpreter:
             'inputs' : inputs,
             'target': target,
             'baselines' : baselines,
-            'additional_forward_args' : None# additional # set to additional
+            'additional_forward_args' : None # additional # set to additional
         }
+
+        if isinstance(self.predictor, DistilBertForSequenceClassification):
+            attr_kwargs['additional_forward_args'] = additional
 
         # For methods that require a feature mask, define each token as one feature
         if mask_features_by_token:

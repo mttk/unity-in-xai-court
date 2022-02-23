@@ -10,6 +10,8 @@ from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
 from podium.datasets.impl import SST
 
+from transformers import BertTokenizer
+
 from datasets import load_dataset
 
 from eraser.eraser_utils import (
@@ -19,6 +21,21 @@ from eraser.eraser_utils import (
     Annotation,
 )
 
+class TokenizerVocabWrapper:
+    def __init__(self, tokenizer):
+        # wrap BertTokenizer so the method signatures align with podium
+        self.tokenizer = tokenizer
+
+    def get_padding_index(self):
+        return self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token)
+
+    def __len__(self):
+        return len(self.tokenizer)
+
+    def numericalize(self, instance):
+        # Equivalent to .encode, but I want to delineate the steps
+        return self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(instance))
 
 def load_embeddings(vocab, name="glove"):
     if name == "glove":
@@ -193,16 +210,27 @@ class IMDBRationale(Dataset):
         return dataset_splits
 
     @staticmethod
-    def get_default_fields():
-        vocab = Vocab(max_size=20000)
+    def get_default_fields(tokenizer=None):
+        if tokenizer is None:
+            vocab = Vocab(max_size=20000)
+            text = Field("text", numericalizer=vocab, include_lengths=True)
+        else:
+            vocab = None
+            text = Field("text",
+                tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True)
+
         fields = {
             "id": Field("id", numericalizer=None),
-            "text": Field("text", numericalizer=vocab, include_lengths=True),
+            "text": text,
             "rationale": Field(
                 "rationale", tokenizer=None, numericalizer=None
             ),  # shd be a boolean mask of same length as text
             "label": LabelField("label"),
         }
+    
         return fields, vocab
 
 
@@ -228,12 +256,13 @@ def load_tse(
 
 
 def load_imdb_rationale(
+    tokenizer=None,
     train_path="data/movies/train.csv",
     valid_path="data/movies/dev.csv",
     test_path="data/movies/test.csv",
     max_size=20000,
 ):
-    fields, vocab = IMDBRationale.get_default_fields()
+    fields, vocab = IMDBRationale.get_default_fields(tokenizer)
     splits = IMDBRationale.load_dataset_splits(fields)
     splits["train"].finalize_fields()
     return list(splits.values()), vocab
@@ -248,6 +277,7 @@ class MaxLenHook:
 
 
 def load_imdb(
+    tokenizer=None,
     train_path="data/IMDB/train.csv",
     valid_path="data/IMDB/dev.csv",
     test_path="data/IMDB/test.csv",
@@ -255,19 +285,36 @@ def load_imdb(
     max_len=200,
 ):
 
-    vocab = Vocab(max_size=max_size)
     post_hooks = []
     if max_len:
         post_hooks.append(MaxLenHook(max_len))
-    fields = [
-        Field(
-            "text",
-            numericalizer=vocab,
-            include_lengths=True,
-            posttokenize_hooks=post_hooks,
-        ),
-        LabelField("label"),
-    ]
+
+    if tokenizer is None:
+        vocab = Vocab(max_size=max_size)
+        fields = [
+            Field(
+                "text",
+                numericalizer=vocab,
+                include_lengths=True,
+                posttokenize_hooks=post_hooks,
+            ),
+            LabelField("label"),
+        ]
+    else:
+        # Use BERT subword tokenization
+        vocab = None
+        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+        fields = [
+            Field(
+                "text",
+                tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True,
+                posttokenize_hooks=post_hooks,
+            ),
+            LabelField("label"),
+        ]
 
     train_dataset = TabularDataset(train_path, format="csv", fields=fields)
     valid_dataset = TabularDataset(valid_path, format="csv", fields=fields)
@@ -278,7 +325,7 @@ def load_imdb(
 
 
 def test_load_imdb():
-    splits, vocab = load_imdb(
+    splits, vocab = load_imdb(None,
         "data/IMDB/train.csv", "data/IMDB/dev.csv", "data/IMDB/test.csv"
     )
     print(vocab)
@@ -326,17 +373,33 @@ def test_load_tse_rationale():
     print(vocab.get_padding_index())
 
 
-def load_sst(max_vocab_size=20_000, max_seq_len=200):
-    vocab = Vocab(max_size=max_vocab_size)
-    fields = [
-        Field(
-            "text",
-            numericalizer=vocab,
-            include_lengths=True,
-            posttokenize_hooks=[MaxLenHook(max_seq_len)],
-        ),
-        LabelField("label"),
-    ]
+def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
+    if tokenizer is None:
+        vocab = Vocab(max_size=max_vocab_size)
+        fields = [
+            Field(
+                "text",
+                numericalizer=vocab,
+                include_lengths=True,
+                posttokenize_hooks=[MaxLenHook(max_seq_len)],
+            ),
+            LabelField("label"),
+        ]
+    else:
+        # Use BERT subword tokenization
+        vocab = None
+        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+        fields = [
+            Field(
+                "text",
+                tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True,
+                posttokenize_hooks=[MaxLenHook(max_seq_len)],
+            ),
+            LabelField("label"),
+        ]
     train, val, test = SST.get_dataset_splits(fields=fields)
     return (train, val, test), vocab
 

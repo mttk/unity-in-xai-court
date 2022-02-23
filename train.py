@@ -14,12 +14,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from podium import BucketIterator
+from transformers import DistilBertTokenizer
 
 from util import Config
 from dataloaders import *
 from model import *
+from distillbert import *
 from interpret import *
 from correlation_measures import *
+
 
 from sklearn.metrics import average_precision_score
 
@@ -37,13 +40,16 @@ dataset_loaders = {
 models = {
   'JWA': JWAttentionClassifier,
   'MLP': MLP,
+  'DBERT': DistilBertForSequenceClassification.from_huggingface_model_name,
 }
 
 def make_parser():
   parser = argparse.ArgumentParser(description='PyTorch RNN Classifier w/ attention')
   parser.add_argument('--data', type=str, default='IMDB',
                         help='Data corpus: [IMDB, IMDB-rationale, TSE, TREC]')
-  parser.add_argument('--model-name', type=str, default='JWA', help='Model: [JWA, MLP]')
+  parser.add_argument('--model_name', type=str, default='JWA', help='Model: [JWA, MLP, DBERT]')
+  parser.add_argument('--pretrained_model', type=str, default='distilbert-base-uncased',
+                      help="Pretrained transformer model to load")
 
 
   # JWA arguments
@@ -75,6 +81,10 @@ def make_parser():
                         help='[USE] bidirectional encoder')
   parser.add_argument('--freeze', action='store_true',
                         help='Freeze embeddings')
+
+  # DistillBERT arguments
+  parser.add_argument('--seq_classif_dropout', type=float, default=0.1,
+                        help='Decoder dropout after *BERT encoding')
 
   # Interpreters & corr measures
   parser.add_argument("--interpreters", nargs="+",
@@ -182,7 +192,7 @@ def correct_for_missing(indices, mask):
 def initialize_model(args, meta):
   # 1. Construct encoder (shared in any case)
   # 2. Construct decoder / decoders
-  if not hasattr(meta, "embeddings"):
+  if not hasattr(meta, "embeddings") and args.model_name != 'DBERT':
     # Cache embeddings
     meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name='glove'))
   model_cls = models[args.model_name]
@@ -274,6 +284,7 @@ def train(model, data, optimizer, criterion, args, meta):
     t = time.time()
     # Unpack batch & cast to device
     (x, lengths), y = batch.text, batch.label
+    # print("Lens", lengths)
 
     y = y.squeeze() # y needs to be a 1D tensor for xent(batch_size)
 
@@ -285,6 +296,7 @@ def train(model, data, optimizer, criterion, args, meta):
       # binary cross entropy, cast labels to float
       y = y.type(torch.float)
 
+    # print(logits.shape, y.shape)
     loss = criterion(logits.view(-1, meta.num_targets).squeeze(), y)
 
     total_loss += float(loss)
@@ -319,9 +331,10 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
 
     for k, interpreter in interpreters.items():
       # print(lengths.shape)
-      labels = None if meta.num_targets == 1 else y.squeeze()
+      labels = None if meta.num_targets == 1 and args.model_name != 'DBERT' else y.squeeze()
       batch_attributions = interpreter.interpret(x, lengths, labels=labels)
       batch_attributions = batch_attributions.detach().cpu().numpy()
+      # print(batch_attributions)
 
       # attributions[k].extend(batch_attributions)
       # Select only non-padding attributions
@@ -365,11 +378,18 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   model = initialize_model(args, meta)
   model.to(device)
 
-  optimizer = torch.optim.Adam(
+  # TODO: use AdamW for DBERT as default 
+  if args.model_name == 'DBERT':
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        args.lr, weight_decay=args.l2)
+  else:
+    optimizer = torch.optim.Adam(
         model.parameters(),
         args.lr, weight_decay=args.l2)
 
-  train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
+  # train_iter_noshuf = make_iterable(train_dataset, device, batch_size=args.batch_size)
+  train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True)
   val_iter = make_iterable(val_dataset, device, batch_size=args.batch_size)
   test_iter = make_iterable(test_dataset, device, batch_size=args.batch_size)
 
@@ -406,50 +426,49 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 
     inst_mask = np.full(len(train_dataset), True) # Instances to use for training
 
-    for ul_epoch in range(1, ul_epochs + 1):
+    #for ul_epoch in range(1, ul_epochs + 1):
       # Reduce dataset post-train loop
 
-      indices, *_ = np.where(inst_mask)
-      train_iter = make_iterable(train_dataset, device, batch_size=args.batch_size, train=True, indices=indices)
+    #  indices, *_ = np.where(inst_mask)
 
-      for epoch in range(1, args.epochs + 1):
+    for epoch in range(1, args.epochs + 1):
 
-        train(model, train_iter, optimizer, criterion, args, meta)
+      train(model, train_iter, optimizer, criterion, args, meta)
 
-        # Compute importance scores for tokens on all batches of validation split
+      # Compute importance scores for tokens on all batches of validation split
 
-        result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
-        # print(result_dict['rationales'])
-        # Compute pairwise correlations between interpretability methods
-        scores, raw_correlations = pairwise_correlation(result_dict['attributions'], correlations)
+      result_dict = interpret_evaluate(interpreters, model, val_iter, args, meta, use_rationales=use_rationales)
+      # print(result_dict['rationales'])
+      # Compute pairwise correlations between interpretability methods
+      scores, raw_correlations = pairwise_correlation(result_dict['attributions'], correlations)
 
-        if use_rationales:
-          rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
-          pprint(rationale_scores)
+      if use_rationales:
+        rationale_scores = rationale_correlation(result_dict['attributions'], result_dict['rationales'])
+        pprint(rationale_scores)
 
-        print(f"Epoch={epoch}, evaluating on validation set:")
-        result_dict = evaluate(model, val_iter, args, meta)
-        loss = result_dict['loss']
+      print(f"Epoch={epoch}, evaluating on validation set:")
+      result_dict = evaluate(model, val_iter, args, meta)
+      loss = result_dict['loss']
 
-        if best_valid_loss is None or loss < best_valid_loss:
-          best_valid_loss = loss
-          best_valid_epoch = epoch
-          best_model = copy.deepcopy(model) # clone params of model, this might be slow, maybe dump?
+      if best_valid_loss is None or loss < best_valid_loss:
+        best_valid_loss = loss
+        best_valid_epoch = epoch
+        best_model = copy.deepcopy(model) # clone params of model, this might be slow, maybe dump?
 
 
       # Run on train set without shuffling so instance indices are preserved
-      train_interpret_scores = interpret_evaluate(interpreters, model, train_iter_noshuf, args, meta, use_rationales=use_rationales)
-      train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
+      # train_interpret_scores = interpret_evaluate(interpreters, model, train_iter_noshuf, args, meta, use_rationales=use_rationales)
+      # train_scores, train_raw_correlations = pairwise_correlation(train_interpret_scores['attributions'], correlations)
 
-      for k in train_raw_correlations:
-        per_instance_agreement = train_raw_correlations[k]
+      # for k in train_raw_correlations:
+      #   per_instance_agreement = train_raw_correlations[k]
 
 
-      min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
-      worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
-      worst_agreement = correct_for_missing(worst_agreement, inst_mask)
+      # min_agreement_indices = np.argsort(per_instance_agreement) # sorted ascending
+      # worst_agreement = min_agreement_indices[:args.query_size] # Worst query_size instances
+      # worst_agreement = correct_for_missing(worst_agreement, inst_mask)
       # Mask out the worst indices
-      inst_mask[worst_agreement] = False
+      # inst_mask[worst_agreement] = False
 
       #sys.exit(-1)
 
@@ -460,7 +479,8 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   results = {}
   results['loss'] = loss
 
-  best_model.rnn.flatten_parameters()
+  if args.model_name == 'JWA':
+    best_model.rnn.flatten_parameters()
 
   best_model_pack = (best_model, criterion, optimizer)
   return results, best_model_pack
@@ -468,7 +488,17 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
 def main():
   args = make_parser()
   dataloader = dataset_loaders[args.data]
-  splits, vocab = dataloader()
+
+  tokenizer = None
+  # If we're using bert, use the pretrained tokenizer instead
+  if args.model_name == 'DBERT':
+    tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
+    splits, _ = dataloader(tokenizer=tokenizer)
+    vocab = TokenizerVocabWrapper(tokenizer)
+    # print(vocab.numericalize("A sample sentence"))
+  else:
+    splits, vocab = dataloader(tokenizer=tokenizer)
+
   if len(splits) == 3:
     train, val, test = splits
   else:
