@@ -325,7 +325,7 @@ def load_imdb(
 
 
 def test_load_imdb():
-    splits, vocab = load_imdb(
+    splits, vocab = load_imdb(None,
         "data/IMDB/train.csv", "data/IMDB/dev.csv", "data/IMDB/test.csv"
     )
     print(vocab)
