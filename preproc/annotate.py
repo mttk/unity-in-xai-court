@@ -52,7 +52,7 @@ def load_dataset(data_path):
   simplified_dataset = SimpleDataset(dataset)
   return simplified_dataset
 
-def process_dataset(model, dataset, batch_size=32):
+def process_dataset(model, dataset, batch_size=32, split='train'):
   stats = {}
   preds = []
   proba = []
@@ -75,10 +75,10 @@ def process_dataset(model, dataset, batch_size=32):
     labels.append(l2i[label])
     proba.append(prob)
 
-  stats[k]['preds'] = preds
-  stats[k]['proba'] = proba
-  stats[k]['labels'] = labels
-  print(f"Stats on {k} dataset:")
+  stats['preds'] = preds
+  stats['proba'] = proba
+  stats['labels'] = labels
+  print(f"Stats on {split} dataset:")
   print("F1 score:", f1_score(labels, preds))
   print(confusion_matrix(labels, preds))
   return stats
@@ -110,7 +110,7 @@ def main():
       os.makedirs(root_log_dir, exist_ok=True)
 
       dataset = load_dataset(v)
-      stats = process_dataset(model, dataset, batch_size=batch_size)
+      stats = process_dataset(model, dataset, batch_size=batch_size, split=k)
 
       stats_dest = os.path.join(root_log_dir, f"{k}_outputs.csv")
       store_stats(stats, stats_dest)
