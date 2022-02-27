@@ -109,7 +109,7 @@ def main():
       root_log_dir = os.path.join(dataset_dir, model_name.replace("/", "_"))
       os.makedirs(root_log_dir, exist_ok=True)
 
-      simplified_dataset = load_dataset(v)
+      dataset = load_dataset(v)
       stats = process_dataset(model, dataset)
 
       stats_dest = os.path.join(root_log_dir, f"{k}_outputs.csv")
