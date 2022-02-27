@@ -52,7 +52,7 @@ def load_dataset(data_path):
   simplified_dataset = SimpleDataset(dataset)
   return simplified_dataset
 
-def process_dataset(model, dataset):
+def process_dataset(model, dataset, batch_size=32):
   stats = {}
   preds = []
   proba = []
@@ -110,7 +110,7 @@ def main():
       os.makedirs(root_log_dir, exist_ok=True)
 
       dataset = load_dataset(v)
-      stats = process_dataset(model, dataset)
+      stats = process_dataset(model, dataset, batch_size=batch_size)
 
       stats_dest = os.path.join(root_log_dir, f"{k}_outputs.csv")
       store_stats(stats, stats_dest)
