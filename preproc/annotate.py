@@ -58,7 +58,7 @@ def process_dataset(model, dataset):
   proba = []
   labels = []
 
-  _, dataset_labels = zip(*list(dataset.label))
+  _, dataset_labels = zip(*list(dataset.dataset.label))
   dataset_labels = list(dataset_labels)
   for idx, result in tqdm(enumerate(model(simplified_dataset,
                                           batch_size=batch_size,
