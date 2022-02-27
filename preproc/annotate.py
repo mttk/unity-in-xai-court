@@ -60,10 +60,10 @@ def process_dataset(model, dataset):
 
   _, dataset_labels = zip(*list(dataset.dataset.label))
   dataset_labels = list(dataset_labels)
-  for idx, result in tqdm(enumerate(model(simplified_dataset,
+  for idx, result in tqdm(enumerate(model(dataset,
                                           batch_size=batch_size,
                                           truncation=True)),
-                          total=len(simplified_dataset)):
+                          total=len(dataset)):
     label = dataset_labels[idx]
 
     # Map string labels to indices
