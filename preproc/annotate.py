@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score, confusion_matrix
 from torch.utils.data import Dataset
 
-from podium.datasets import TabularDataset, Dataset, ExampleFactory
+from podium.datasets import TabularDataset, ExampleFactory
 from podium import Vocab, Field, LabelField, BucketIterator
 
 models_to_consider = ["siebert/sentiment-roberta-large-english"]
