@@ -197,7 +197,6 @@ def extract_best_epoch(exp_set, interpret_pairs):
         )
         df_tr["experiment"] = exp_index
         df_tr.set_index(["experiment", "al_iter"], inplace=True)
-        dfs_tr.append(df_tr)
 
         agreement_vals = []
         interpret_vals = []
@@ -218,11 +217,14 @@ def extract_best_epoch(exp_set, interpret_pairs):
         df_agr["experiment"] = exp_index
         df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
 
+        df_tr["experiment"] = exp_index
+        df_tr.set_index(["experiment", "al_iter"], inplace=True)
+
         df_crt_train = extract_cartography(
-            [experiment["cartography"]["train"]], exp_index, iter_vals, labeled_vals
+            experiment["cartography"]["train"], exp_index, iter_vals, labeled_vals
         )
         df_crt_test = extract_cartography(
-            [experiment["cartography"]["test"]], exp_index, iter_vals, labeled_vals
+            experiment["cartography"]["test"], exp_index, iter_vals, labeled_vals
         )
 
         dfs_tr.append(df_tr)
