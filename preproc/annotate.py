@@ -15,7 +15,7 @@ from podium import Vocab, Field, LabelField, BucketIterator
 
 models_to_consider = [#"siebert/sentiment-roberta-large-english",
                       # "finiteautomata/beto-sentiment-analysis", -> OK
-                     "nlptown/bert-base-multilingual-uncased-sentiment", # -> 5 class classification
+                     # "nlptown/bert-base-multilingual-uncased-sentiment", # -> 5 class classification
                       "cardiffnlp/twitter-roberta-base-sentiment",
 ]
 
@@ -142,7 +142,12 @@ def main():
 
   for model_name in models_to_consider:
     print(f"For model: {model_name}")
-    model = pipeline("sentiment-analysis", model=model_name, device=cuda)
+    if 'cardiffnlp' in model_name:
+      # Hardcode max length because for some reason it isn't defined in model
+      model = pipeline("sentiment-analysis", model=model_name, device=cuda,
+                        model_max_length=512)
+    else:
+      model = pipeline("sentiment-analysis", model=model_name, device=cuda)
 
     for k,v in dataset_paths.items():
       dataset_dir, _ = os.path.split(v)
