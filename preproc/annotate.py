@@ -16,9 +16,9 @@ from podium import Vocab, Field, LabelField, BucketIterator
 # "finiteautomata/beto-sentiment-analysis", # Spanish, disregard
 
 models_to_consider = ["distilbert-base-uncased-finetuned-sst-2-english"
-                      # "siebert/sentiment-roberta-large-english",
-                      # "nlptown/bert-base-multilingual-uncased-sentiment",
-                      # "cardiffnlp/twitter-roberta-base-sentiment",
+                      "siebert/sentiment-roberta-large-english",
+                      "nlptown/bert-base-multilingual-uncased-sentiment",
+                      "cardiffnlp/twitter-roberta-base-sentiment",
 ]
 
 dataset_paths = {
