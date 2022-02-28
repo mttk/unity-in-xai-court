@@ -258,7 +258,7 @@ class ActiveLearner:
                 flush=True,
             )
 
-        loss = total_loss / len(self.train_set)
+        loss = total_loss / len(train_iter)
         result_dict = {"loss": loss}
         logit_tensor = torch.cat(logit_list)
         y_true = torch.cat(y_true_list)
