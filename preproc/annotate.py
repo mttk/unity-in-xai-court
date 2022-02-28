@@ -13,7 +13,11 @@ from torch.utils.data import Dataset
 from podium.datasets import TabularDataset, ExampleFactory
 from podium import Vocab, Field, LabelField, BucketIterator
 
-models_to_consider = ["siebert/sentiment-roberta-large-english"]
+models_to_consider = [#"siebert/sentiment-roberta-large-english",
+                      "finiteautomata/beto-sentiment-analysis"
+                      "nlptown/bert-base-multilingual-uncased-sentiment",
+                      "cardiffnlp/twitter-roberta-base-sentiment",
+]
 
 dataset_paths = {
   'train': '../data/IMDB_sentencesplit_nofilter/IMDB_sentencesplit_train.csv',
@@ -78,29 +82,43 @@ def process_dataset(model, dataset, batch_size=32, split='train'):
   stats['preds'] = preds
   stats['proba'] = proba
   stats['labels'] = labels
+  fscore = f1_score(labels, preds)
+  confmat = confusion_matrix(labels, preds)
+  stats['fscore'] = fscore
+  stats['confmat'] = confmat
   print(f"Stats on {split} dataset:")
-  print("F1 score:", f1_score(labels, preds))
-  print(confusion_matrix(labels, preds))
+  print("F1 score:", fscore)
+  print(confmat)
   return stats
 
 def store_stats(stats, dest):
-    with open(dest, 'w') as outfile:
-      preds, proba, labels = stats['preds'], stats['proba'], stats['labels']
-      for p, y_hat, y in zip(proba, preds, labels):
-        outfile.write(str(y_hat) + "," + str(y) + "," + str(p) + "\n")
+  # This should be prettier
+  # Store raw predictions and prediction probabilities
+  preds_ext = "_outputs.csv"
+  with open(dest + preds_ext, 'w') as outfile:
+    preds, proba, labels = stats['preds'], stats['proba'], stats['labels']
+    for p, y_hat, y in zip(proba, preds, labels):
+      outfile.write(str(y_hat) + "," + str(y) + "," + str(p) + "\n")
 
-      png_dest = dest.replace('.csv', '_pred_dist.png')
-      fig = plt.figure()
-      plt.hist(proba)
-      plt.savefig(png_dest)
-      plt.close(fig)
+  # Store f1 score and confusion matrix in raw txt
+  stats_ext = "_stats.txt"
+  with open(dest + stats_ext, 'w') as outfile:
+    outfile.write("F1: ", str(stats['fscore']) + "\n")
+    outfile.write(stats[confmat])
 
+  # Store prediction probability distributions
+  png_dest = dest + '_pred_dist.png'
+  fig = plt.figure()
+  plt.hist(proba)
+  plt.savefig(png_dest)
+  plt.close(fig)
 
 def main():
   batch_size = 32
   cuda = 1
 
   for model_name in models_to_consider:
+    print(f"For model: {model_name}")
     model = pipeline("sentiment-analysis", model=model_name, device=cuda)
 
     for k,v in dataset_paths.items():
@@ -112,7 +130,7 @@ def main():
       dataset = load_dataset(v)
       stats = process_dataset(model, dataset, batch_size=batch_size, split=k)
 
-      stats_dest = os.path.join(root_log_dir, f"{k}_outputs.csv")
+      stats_dest = os.path.join(root_log_dir, k)
       store_stats(stats, stats_dest)
 
 
