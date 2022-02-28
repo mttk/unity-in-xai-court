@@ -114,7 +114,7 @@ def store_stats(stats, dest):
   # Store f1 score and confusion matrix in raw txt
   stats_ext = "_stats.txt"
   with open(dest + stats_ext, 'w') as outfile:
-    outfile.write("F1: ", str(stats['fscore']) + "\n")
+    outfile.write("F1: " + str(stats['fscore']) + "\n")
     outfile.write(stats[confmat])
 
   # Store prediction probability distributions
