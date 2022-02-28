@@ -115,7 +115,7 @@ def store_stats(stats, dest):
   stats_ext = "_stats.txt"
   with open(dest + stats_ext, 'w') as outfile:
     outfile.write("F1: " + str(stats['fscore']) + "\n")
-    outfile.write(stats['confmat'])
+    outfile.write(str(stats['confmat']))
 
   # Store prediction probability distributions
   png_dest = dest + '_pred_dist.png'
