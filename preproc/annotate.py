@@ -37,7 +37,8 @@ l2i = {
     'positive': 1,
     'negative': 0,
     'pos': 1,
-    'neg': 0
+    'neg': 0,
+    'neu': 2
 }
 
 class SimpleDataset(Dataset):
