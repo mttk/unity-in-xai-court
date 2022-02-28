@@ -1,7 +1,7 @@
 import os, sys
 import matplotlib
 matplotlib.use('Agg') # No display
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer
 from tqdm import tqdm
 
 import numpy as np
@@ -144,8 +144,9 @@ def main():
     print(f"For model: {model_name}")
     if 'cardiffnlp' in model_name:
       # Hardcode max length because for some reason it isn't defined in model
+      tokenizer = AutoTokenizer.from_pretrained(model_name, model_max_length=512)
       model = pipeline("sentiment-analysis", model=model_name, device=cuda,
-                        model_max_length=512)
+                        tokenizer=tokenizer)
     else:
       model = pipeline("sentiment-analysis", model=model_name, device=cuda)
 
