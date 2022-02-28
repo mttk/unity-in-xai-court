@@ -85,10 +85,18 @@ def process_dataset(model, dataset, batch_size=32, split='train'):
   stats['preds'] = preds
   stats['proba'] = proba
   stats['labels'] = labels
-  fscore = f1_score(labels, preds)
+
   confmat = confusion_matrix(labels, preds)
+  if max(preds) == 2:
+    # Really ugly, detects multiclass
+    fscore = f1_score(labels, preds, average='micro')
+  else:
+    # Binary
+    fscore = f1_score(labels, preds)
+
   stats['fscore'] = fscore
   stats['confmat'] = confmat
+
   print(f"Stats on {split} dataset:")
   print("F1 score:", fscore)
   print(confmat)
