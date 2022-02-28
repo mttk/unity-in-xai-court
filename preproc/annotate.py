@@ -20,8 +20,8 @@ models_to_consider = ["siebert/sentiment-roberta-large-english",
 ]
 
 dataset_paths = {
-  'train': '../data/IMDB_sentencesplit_nofilter/IMDB_sentencesplit_train.csv',
-  'test': '../data/IMDB_sentencesplit_nofilter/IMDB_sentencesplit_test.csv'
+  'train': '../data/IMDB_sentencesplit_filtered_lowercased/IMDB_sentencesplit_train.csv',
+  'test': '../data/IMDB_sentencesplit_filtered_lowercased/IMDB_sentencesplit_test.csv'
 }
 
 fields = [
@@ -99,7 +99,7 @@ def process_dataset(model, dataset, batch_size=32, split='train'):
   stats['labels'] = labels
 
   confmat = confusion_matrix(labels, preds)
-  if max(preds) == 2:
+  if max(preds) >= 2:
     # Really ugly, detects multiclass
     fscore = f1_score(labels, preds, average='micro')
   else:
