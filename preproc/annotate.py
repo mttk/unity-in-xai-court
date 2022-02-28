@@ -14,7 +14,7 @@ from podium.datasets import TabularDataset, ExampleFactory
 from podium import Vocab, Field, LabelField, BucketIterator
 
 models_to_consider = [#"siebert/sentiment-roberta-large-english",
-                      "finiteautomata/beto-sentiment-analysis"
+                      "finiteautomata/beto-sentiment-analysis",
                       "nlptown/bert-base-multilingual-uncased-sentiment",
                       "cardiffnlp/twitter-roberta-base-sentiment",
 ]
