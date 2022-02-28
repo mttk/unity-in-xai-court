@@ -35,7 +35,9 @@ fields = [
 
 l2i = {
     'positive': 1,
-    'negative': 0
+    'negative': 0,
+    'pos': 1,
+    'neg': 0
 }
 
 class SimpleDataset(Dataset):
