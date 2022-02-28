@@ -15,7 +15,7 @@ from podium import Vocab, Field, LabelField, BucketIterator
 
 models_to_consider = [#"siebert/sentiment-roberta-large-english",
                       # "finiteautomata/beto-sentiment-analysis", -> OK
-                      # "nlptown/bert-base-multilingual-uncased-sentiment", -> 5 class classification
+                     "nlptown/bert-base-multilingual-uncased-sentiment", # -> 5 class classification
                       "cardiffnlp/twitter-roberta-base-sentiment",
 ]
 
@@ -34,11 +34,23 @@ fields = [
 ]
 
 l2i = {
+    # siebert labels
     'positive': 1,
     'negative': 0,
+    # Beto-sentiment-analysis labels
     'pos': 1,
     'neg': 0,
-    'neu': 2
+    'neu': 2,
+    # nlptown labels
+    '1 star': 0, # Negative
+    '2 stars': 0, # Negative
+    '3 stars': 2, # Neutral?
+    '4 stars': 1, # Positive
+    '5 stars': 1, # Positive
+    # Cardiffnlp labels
+    'label_0': 0, # Negative
+    'label_1': 2, # Neutral
+    'label_2': 1, # Positive
 }
 
 class SimpleDataset(Dataset):
