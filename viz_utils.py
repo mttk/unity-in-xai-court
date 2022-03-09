@@ -133,17 +133,19 @@ def extract_last_epoch(exp_set, interpret_pairs):
 
         agreement_vals = []
         interpret_vals = []
-        agreement = experiment["agreement"]
+        correlation_vals = []
         for ip in interpret_pairs:
-            for a in agreement:
+            for a, corr in zip(experiment["agreement"], experiment["correlation"]):
                 interpret_vals.append(ip)
                 agreement_vals.append(a[-1][ip])
+                correlation_vals.append(np.array(corr[-1][ip]))
 
         df_agr = pd.DataFrame(
             {
                 "al_iter": iter_vals * len(interpret_pairs),
                 "labeled": labeled_vals * len(interpret_pairs),
                 "agreement": agreement_vals,
+                "correlation": correlation_vals,
                 "interpreter": interpret_vals,
             }
         )
@@ -200,17 +202,19 @@ def extract_best_epoch(exp_set, interpret_pairs):
 
         agreement_vals = []
         interpret_vals = []
-        agreement = experiment["agreement"]
+        correlation_vals = []
         for ip in interpret_pairs:
-            for i, a in zip(indices, agreement):
+            for a, corr in zip(experiment["agreement"], experiment["correlation"]):
                 interpret_vals.append(ip)
-                agreement_vals.append(a[i][ip])
+                agreement_vals.append(a[-1][ip])
+                correlation_vals.append(np.array(corr[-1][ip]))
 
         df_agr = pd.DataFrame(
             {
                 "al_iter": iter_vals * len(interpret_pairs),
                 "labeled": labeled_vals * len(interpret_pairs),
                 "agreement": agreement_vals,
+                "correlation": correlation_vals,
                 "interpreter": interpret_vals,
             }
         )
@@ -239,6 +243,21 @@ def extract_best_epoch(exp_set, interpret_pairs):
     return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test
 
 
+def df_train_average(df, groupby=["al_iter", "sampler"]):
+    new_df = df.groupby(groupby).aggregate("mean")
+    new_df.labeled = new_df.labeled.astype(int)
+    return new_df
+
+
+def df_agr_average(df, groupby=["al_iter", "sampler", "interpreter"]):
+    grouped = df.groupby(groupby)
+    new_df = pd.DataFrame()
+    new_df["correlation"] = grouped.correlation.apply(np.mean)
+    new_df["aggrement"] = grouped.agreement.agg("mean")
+    new_df["labeled"] = grouped.labeled.agg("min")
+    return new_df
+
+
 def plot_al_accuracy(data, figsize=(12, 8), ci=90):
     plt.figure(figsize=figsize)
     sns.lineplot(
@@ -260,7 +279,7 @@ def plot_experiment_set(df_tr, df_agr, meta, sampler, figsize=(12, 16)):
     axs[0].set_title(f"{meta['dataset']} - {meta['model']} - {sampler}")
     sns.lineplot(ax=axs[0], data=df_tr_filt, x="labeled", y="train_loss", color="r")
     sns.lineplot(ax=axs[1], data=df_tr_filt, x="labeled", y="test_accuracy", color="g")
-    sns.lineplot(
+    g = sns.lineplot(
         ax=axs[2],
         data=df_agr_filt,
         x="labeled",
@@ -270,6 +289,7 @@ def plot_experiment_set(df_tr, df_agr, meta, sampler, figsize=(12, 16)):
         markers=True,
         dashes=False,
     )
+    g.legend(loc="center right", bbox_to_anchor=(1.3, 0.5), ncol=1)
     plt.show()
 
 
