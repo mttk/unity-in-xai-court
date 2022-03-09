@@ -412,24 +412,12 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
   # TODO: check if rationales exist in the dataset
   use_rationales = True if args.data in ['IMDB-rationale'] else False
 
-  if args.ul_epochs == -1:
-    ul_epochs = len(train_dataset) // args.query_size - 1 # number of steps to reduce the entire dataset to a single query_size
-  else:
-    ul_epochs = args.ul_epochs
-
   loss = 0.
   # The actual training loop
   try:
     best_valid_loss = None
     best_valid_epoch = 0
     best_model = copy.deepcopy(model)
-
-    inst_mask = np.full(len(train_dataset), True) # Instances to use for training
-
-    #for ul_epoch in range(1, ul_epochs + 1):
-      # Reduce dataset post-train loop
-
-    #  indices, *_ = np.where(inst_mask)
 
     for epoch in range(1, args.epochs + 1):
 
