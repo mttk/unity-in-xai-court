@@ -1,6 +1,7 @@
 import os, sys
 from random import random
 from re import M
+from sklearn.utils import shuffle
 import torch
 
 import numpy as np
@@ -21,6 +22,7 @@ from eraser.eraser_utils import (
     Annotation,
 )
 
+
 class TokenizerVocabWrapper:
     def __init__(self, tokenizer):
         # wrap BertTokenizer so the method signatures align with podium
@@ -34,8 +36,8 @@ class TokenizerVocabWrapper:
 
     def numericalize(self, instance):
         # Equivalent to .encode, but I want to delineate the steps
-        return self.tokenizer.convert_tokens_to_ids(
-                    self.tokenizer.tokenize(instance))
+        return self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(instance))
+
 
 def load_embeddings(vocab, name="glove"):
     if name == "glove":
@@ -216,11 +218,13 @@ class IMDBRationale(Dataset):
             text = Field("text", numericalizer=vocab, include_lengths=True)
         else:
             vocab = None
-            text = Field("text",
+            text = Field(
+                "text",
                 tokenizer=tokenizer.tokenize,
                 padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
-                include_lengths=True)
+                include_lengths=True,
+            )
 
         fields = {
             "id": Field("id", numericalizer=None),
@@ -230,7 +234,7 @@ class IMDBRationale(Dataset):
             ),  # shd be a boolean mask of same length as text
             "label": LabelField("label"),
         }
-    
+
         return fields, vocab
 
 
@@ -324,9 +328,62 @@ def load_imdb(
     return (train_dataset, valid_dataset, test_dataset), vocab
 
 
+def load_imdb_sentences(
+    tokenizer=None,
+    train_path="data/IMDB_sentences/IMDB_nlptown_bert_train.csv",
+    test_path="data/IMDB_sentences/IMDB_nlptown_bert_test.csv",
+    max_vocab_size=20000,
+    max_len=100,
+):
+
+    post_hooks = []
+    if max_len:
+        post_hooks.append(MaxLenHook(max_len))
+
+    if tokenizer is None:
+        vocab = Vocab(max_size=max_vocab_size)
+        fields = [
+            Field(
+                "text",
+                numericalizer=vocab,
+                include_lengths=True,
+                posttokenize_hooks=post_hooks,
+            ),
+            LabelField("label"),
+        ]
+    else:
+        # Use BERT subword tokenization
+        vocab = None
+        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
+        fields = [
+            Field(
+                "text",
+                tokenizer=tokenizer.tokenize,
+                padding_token=pad_index,
+                numericalizer=tokenizer.convert_tokens_to_ids,
+                include_lengths=True,
+                posttokenize_hooks=post_hooks,
+            ),
+            LabelField("label"),
+        ]
+
+    train_dataset, valid_dataset = TabularDataset(
+        train_path, format="csv", fields=fields
+    ).split(split_ratio=0.7, random_state=42)
+    test_dataset = TabularDataset(test_path, format="csv", fields=fields)
+
+    train_dataset.finalize_fields()
+    print(fields[1].vocab.stoi)
+    return (
+        train_dataset[:25_000],
+        valid_dataset[:10_000],
+        test_dataset[:10_000],
+    ), vocab
+
+
 def test_load_imdb():
-    splits, vocab = load_imdb(None,
-        "data/IMDB/train.csv", "data/IMDB/dev.csv", "data/IMDB/test.csv"
+    splits, vocab = load_imdb(
+        None, "data/IMDB/train.csv", "data/IMDB/dev.csv", "data/IMDB/test.csv"
     )
     print(vocab)
     train, valid, test = splits
@@ -344,6 +401,25 @@ def test_load_imdb():
     print(vocab.reverse_numericalize(text[0]))
     print(length[0])
     print(vocab.get_padding_index())
+
+
+def test_load_imdb_sentences():
+    splits, vocab = load_imdb_sentences()
+    print(vocab)
+    train, valid, test = splits
+    print(len(train), len(valid), len(test))
+
+    print(train)
+
+    device = torch.device("cpu")
+    train_iter = make_iterable(test, device, batch_size=16)
+    batch = next(iter(train_iter))
+
+    print(batch)
+    text, length = batch.text
+    for i in range(len(text)):
+        print(vocab.reverse_numericalize(text[i]))
+        print(length[i])
 
 
 def test_load_imdb_rationale(conflate=True):
@@ -475,7 +551,7 @@ def test_load_trec():
 
 
 if __name__ == "__main__":
-    test_load_imdb()
+    test_load_imdb_sentences()
     # (train, dev, test), vocab = load_imdb_rationale()
     # print(len(train), len(dev), len(test))
     # print(train[0].keys())
