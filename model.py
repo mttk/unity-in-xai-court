@@ -155,27 +155,29 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
         # print(h.shape, o.shape) # m = 32, 300
         attn_weights, hidden = self.attention(h, o, o, attn_mask=m)
 
-        return attn_weights, hidden
+        # Also return RNN outputs for weight tying
+        return attn_weights, hidden, o
 
     def forward_inner(self, embedded_tokens, lengths):
-        _, hidden = self.encode(embedded_tokens, lengths)
+        _, hidden, rnn_outputs = self.encode(embedded_tokens, lengths)
 
         # Perform decoding
         pred = self.decoder(hidden)  # [Bx1]
 
-        return pred, hidden
+        return pred, (hidden, rnn_outputs)
 
     def forward(self, inputs, lengths=None):
         # inputs = [BxT]
         e = self.embedding(inputs)  # [BxTxE]
         # e = [BxTxE]
 
-        pred, hidden = self.forward_inner(e, lengths)
+        pred, (hidden, rnn_outputs) = self.forward_inner(e, lengths)
 
         # For additional return arguments
         return_dict = {
             "embeddings": e,
             "encoded": hidden,
+            "hiddens": rnn_outputs
         }
 
         return pred, return_dict
@@ -198,7 +200,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
     def get_encoded(self, inputs, lengths=None):
         with torch.inference_mode():
             e = self.embedding(inputs)
-            _, hidden = self.encode(e, lengths)
+            _, hidden, _ = self.encode(e, lengths)
             return hidden
 
     @overrides
