@@ -254,7 +254,7 @@ class ActiveLearner:
 
               # print(h.shape, e.shape)
               reg = (h - e).norm(2, dim=-1).mean()
-              loss += args.tying * reg
+              loss += self.args.tying * reg
 
             total_loss += float(loss)
 
