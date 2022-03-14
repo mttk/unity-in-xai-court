@@ -392,7 +392,7 @@ def train(model, data, optimizer, criterion, args, meta):
 
         # Perform weight tying if required
         if args.tying > 0. and args.model_name == 'JWA':
-          e = return_dict['embeddings'] # TxBxH
+          e = return_dict['embeddings'].transpose(0,1) # BxTxH -> TxBxH
           h = return_dict['hiddens'] # TxBxH
 
           print(h.shape, e.shape)
