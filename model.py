@@ -168,7 +168,10 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
 
     def forward(self, inputs, lengths=None):
         # inputs = [BxT]
+        print("[I]", inputs.shape)
         e = self.embedding(inputs)  # [BxTxE]
+        print("[E]", e.shape)
+        
         # e = [BxTxE]
 
         pred, (hidden, rnn_outputs) = self.forward_inner(e, lengths)
