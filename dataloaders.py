@@ -279,7 +279,6 @@ class MaxLenHook:
     def __call__(self, raw, tokenized):
         return raw, tokenized[: self.max_len]
 
-
 def load_imdb(
     tokenizer=None,
     train_path="data/IMDB/train.csv",
