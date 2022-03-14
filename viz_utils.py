@@ -194,6 +194,7 @@ def extract_best_epoch(exp_set, interpret_pairs):
     dfs_agr = []
     dfs_crt_train = []
     dfs_crt_test = []
+    dfs_attr = []
     for exp_index, experiment in enumerate(exp_set):
         train = experiment["train"]
         test = experiment["eval"]
@@ -239,9 +240,6 @@ def extract_best_epoch(exp_set, interpret_pairs):
         df_agr["experiment"] = exp_index
         df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
 
-        df_tr["experiment"] = exp_index
-        df_tr.set_index(["experiment", "al_iter"], inplace=True)
-
         df_crt_train = extract_cartography(
             experiment["cartography"]["train"], exp_index, iter_vals, labeled_vals
         )
@@ -249,16 +247,20 @@ def extract_best_epoch(exp_set, interpret_pairs):
             experiment["cartography"]["test"], exp_index, iter_vals, labeled_vals
         )
 
+        df_attr = extract_attribution(experiment["attributions"], exp_index)
+
         dfs_tr.append(df_tr)
         dfs_agr.append(df_agr)
         dfs_crt_train.append(df_crt_train)
         dfs_crt_test.append(df_crt_test)
+        dfs_attr.append(df_attr)
 
     new_df_tr = pd.concat(dfs_tr)
     new_df_agr = pd.concat(dfs_agr)
     new_df_crt_train = pd.concat(dfs_crt_train)
     new_df_crt_test = pd.concat(dfs_crt_test)
-    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test
+    new_df_attr = pd.concat(dfs_attr)
+    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test, new_df_attr
 
 
 def df_train_average(df, groupby=["al_iter", "sampler"]):
