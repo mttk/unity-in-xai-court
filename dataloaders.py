@@ -350,6 +350,7 @@ def load_imdb_sentences(
                 numericalizer=vocab,
                 include_lengths=True,
                 posttokenize_hooks=post_hooks,
+                keep_raw=True,
             ),
             LabelField("label"),
         ]
@@ -365,6 +366,7 @@ def load_imdb_sentences(
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
                 posttokenize_hooks=post_hooks,
+                keep_raw=True,
             ),
             LabelField("label"),
         ]
@@ -373,11 +375,12 @@ def load_imdb_sentences(
         train_path, format="csv", fields=fields
     ).split(split_ratio=0.7, random_state=42)
     test_dataset = TabularDataset(test_path, format="csv", fields=fields)
+    test_dataset.shuffle_examples(random_state=42)
 
     train_dataset.finalize_fields()
     print(fields[1].vocab.stoi)
     return (
-        train_dataset[:25_000],
+        train_dataset[:50_000],
         valid_dataset[:10_000],
         test_dataset[:10_000],
     ), vocab
