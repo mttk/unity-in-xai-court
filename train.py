@@ -395,6 +395,7 @@ def train(model, data, optimizer, criterion, args, meta):
           e = return_dict['embeddings'] # TxBxH
           h = return_dict['hiddens'] # TxBxH
 
+          print(h.shape, e.shape)
           reg = (h - e).norm(2, dim=-1).mean()
           loss += args.tying * reg
 
