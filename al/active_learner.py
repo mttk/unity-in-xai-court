@@ -234,7 +234,7 @@ class ActiveLearner:
             y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
             y_true_list.append(y)
 
-            logits, _ = model(x, lengths)
+            logits, return_dict = model(x, lengths)
             logit_list.append(logits)
 
             # Bookkeeping and cast label to float
@@ -246,6 +246,15 @@ class ActiveLearner:
                 y = y.type(torch.float)
 
             loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
+
+            # Perform weight tying if required
+            if args.tying > 0. and args.model_name == 'JWA':
+              e = return_dict['embeddings'].transpose(0,1) # BxTxH -> TxBxH
+              h = return_dict['hiddens'] # TxBxH
+
+              # print(h.shape, e.shape)
+              reg = (h - e).norm(2, dim=-1).mean()
+              loss += args.tying * reg
 
             total_loss += float(loss)
 
