@@ -248,7 +248,7 @@ class ActiveLearner:
             loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
 
             # Perform weight tying if required
-            if args.tying > 0. and args.model_name == 'JWA':
+            if self.args.tying > 0. and self.args.model_name == 'JWA':
               e = return_dict['embeddings'].transpose(0,1) # BxTxH -> TxBxH
               h = return_dict['hiddens'] # TxBxH
 
