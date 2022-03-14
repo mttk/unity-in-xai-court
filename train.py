@@ -61,6 +61,13 @@ def make_parser():
         help="Pretrained transformer model to load",
     )
 
+    # Representation tying arguments
+    parser.add_argument(
+        "--tying",
+        type=float,
+        default=0.,
+        help="Weight tying lambda (if applicable)"
+    )
     # JWA arguments
     parser.add_argument(
         "--rnn_type",
@@ -382,6 +389,14 @@ def train(model, data, optimizer, criterion, args, meta):
 
         # print(logits.shape, y.shape)
         loss = criterion(logits.view(-1, meta.num_targets).squeeze(), y)
+
+        # Perform weight tying if required
+        if args.tying > 0.:
+          e = return_dict['embeddings'] # TxBxH
+          h = return_dict['hiddens'] # TxBxH
+
+          reg = (h - e).norm(2, dim=-1).mean()
+          loss += args.tying * reg
 
         total_loss += float(loss)
         optimizer.zero_grad()
