@@ -301,6 +301,7 @@ def load_imdb(
                 numericalizer=vocab,
                 include_lengths=True,
                 posttokenize_hooks=post_hooks,
+                keep_raw=True,
             ),
             LabelField("label"),
         ]
@@ -316,6 +317,7 @@ def load_imdb(
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
                 posttokenize_hooks=post_hooks,
+                keep_raw=True,
             ),
             LabelField("label"),
         ]

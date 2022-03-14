@@ -55,8 +55,9 @@ def results_to_df(experiments, meta, mode="last"):
     dfs_agr = []
     dfs_crt_train = []
     dfs_crt_test = []
+    dfs_attr = []
     for sampler, exp_set in experiments.items():
-        df_tr, df_agr, df_crt_train, df_crt_test = extract_fn(
+        df_tr, df_agr, df_crt_train, df_crt_test, df_attr = extract_fn(
             exp_set, meta["interpret_pairs"]
         )
         df_tr["sampler"] = sampler
@@ -67,16 +68,18 @@ def results_to_df(experiments, meta, mode="last"):
         dfs_agr.append(df_agr)
         dfs_crt_train.append(df_crt_train)
         dfs_crt_test.append(df_crt_test)
+        dfs_attr.append(df_attr)
 
     new_df_tr = pd.concat(dfs_tr)
     new_df_agr = pd.concat(dfs_agr)
     new_df_crt_train = pd.concat(dfs_crt_train)
     new_df_crt_test = pd.concat(dfs_crt_test)
+    new_df_attr = pd.concat(dfs_attr)
 
     new_df_crt_avg_train = cartography_average(new_df_crt_train)
     new_df_crt_avg_test = cartography_average(new_df_crt_test)
 
-    return new_df_tr, new_df_agr, new_df_crt_avg_train, new_df_crt_avg_test
+    return new_df_tr, new_df_agr, new_df_crt_avg_train, new_df_crt_avg_test, new_df_attr
 
 
 def extract_cartography(crts, exp_index, iter_vals, labeled_vals):
@@ -108,11 +111,22 @@ def extract_cartography(crts, exp_index, iter_vals, labeled_vals):
     return df_crt
 
 
+def extract_attribution(attribution, exp_index):
+    # Retrieve attributions from the last AL iter
+    attribution_dict = attribution[-1][0]
+    df = pd.DataFrame(attribution_dict)
+    df["experiment"] = exp_index
+    df["example"] = range(len(df))
+    df.set_index(["experiment", "example"], inplace=True)
+    return df
+
+
 def extract_last_epoch(exp_set, interpret_pairs):
     dfs_tr = []
     dfs_agr = []
     dfs_crt_train = []
     dfs_crt_test = []
+    dfs_attr = []
     for exp_index, experiment in enumerate(exp_set):
         train = experiment["train"]
         train_vals = [tr[-1]["loss"] for tr in train]
@@ -159,16 +173,20 @@ def extract_last_epoch(exp_set, interpret_pairs):
             experiment["cartography"]["test"], exp_index, iter_vals, labeled_vals
         )
 
+        df_attr = extract_attribution(experiment["attributions"], exp_index)
+
         dfs_tr.append(df_tr)
         dfs_agr.append(df_agr)
         dfs_crt_train.append(df_crt_train)
         dfs_crt_test.append(df_crt_test)
+        dfs_attr.append(df_attr)
 
     new_df_tr = pd.concat(dfs_tr)
     new_df_agr = pd.concat(dfs_agr)
     new_df_crt_train = pd.concat(dfs_crt_train)
     new_df_crt_test = pd.concat(dfs_crt_test)
-    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test
+    new_df_attr = pd.concat(dfs_attr)
+    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test, new_df_attr
 
 
 def extract_best_epoch(exp_set, interpret_pairs):
@@ -246,6 +264,11 @@ def extract_best_epoch(exp_set, interpret_pairs):
 def df_train_average(df, groupby=["al_iter", "sampler"]):
     new_df = df.groupby(groupby).aggregate("mean")
     new_df.labeled = new_df.labeled.astype(int)
+    return new_df
+
+
+def df_attr_average(df, groupby="example"):
+    new_df = df.groupby(groupby).aggregate("mean")
     return new_df
 
 

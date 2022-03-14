@@ -52,7 +52,7 @@ def make_parser():
         help="Data corpus: [IMDB, IMDB-rationale, TSE, TREC]",
     )
     parser.add_argument(
-        "--model_name", type=str, default="JWA", help="Model: [JWA, MLP, DBERT]"
+        "--model-name", type=str, default="JWA", help="Model: [JWA, MLP, DBERT]"
     )
     parser.add_argument(
         "--pretrained_model",
@@ -428,6 +428,7 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
             )
             batch_attributions = interpreter.interpret(x, lengths, labels=labels)
             batch_attributions = batch_attributions.detach().cpu().numpy()
+            torch.cuda.empty_cache()
             # print(batch_attributions)
 
             # attributions[k].extend(batch_attributions)

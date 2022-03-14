@@ -88,6 +88,7 @@ class ActiveLearner:
             "train": [],
             "eval": [],
             "agreement": [],
+            "attributions": [],
             "correlation": [],
             "labeled": [],
             "cartography": {"train": [], "test": []},
@@ -122,6 +123,7 @@ class ActiveLearner:
             train_results = []
             eval_results = []
             agreement_results = []
+            attributions_results = []
             correlation_results = []
             cartography_trends = {
                 "train": {"is_correct": [], "true_probs": []},
@@ -154,6 +156,7 @@ class ActiveLearner:
                 )
                 agreement_results.append(scores)
                 correlation_results.append(raw_correlations)
+                attributions_results.append(intepret_result_dict["attributions"])
                 logging.info("Interpretability scores", scores)
 
                 # d) Calculate epoch cartography
@@ -205,6 +208,7 @@ class ActiveLearner:
             results["train"].append(train_results)
             results["eval"].append(eval_results)
             results["agreement"].append(agreement_results)
+            results["attributions"].append(attributions_results)
             results["correlation"].append(correlation_results)
             results["cartography"]["train"].append(cartography_results["train"])
             results["cartography"]["test"].append(cartography_results["test"])
