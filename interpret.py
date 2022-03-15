@@ -23,6 +23,7 @@ from captum.attr import (
 
 from captum._utils.models.linear_model import SkLearnRidge
 
+
 class Interpreter:
     # >> Adapted from court-of-xai codebase
     def __init__(self, name, model, mask_features_by_token=False, attribute_args={}):
@@ -35,15 +36,20 @@ class Interpreter:
         # Determine and set additional kwargs for the attribute method
 
         # print("[I]",instance.shape)
-        captum_inputs = self.predictor.instances_to_captum_inputs(instance, lengths, labels=labels)
+        captum_inputs = self.predictor.instances_to_captum_inputs(
+            instance, lengths, labels=labels
+        )
         # print("[I]",captum_inputs[0].shape)
 
         # 1. Prepare arguments
         args = dict(
-                **kwargs, # Call-based extra arguments
-                **self.attribute_kwargs(captum_inputs, mask_features_by_token=self.mask_features_by_token), # General extra arguments
-                **self.attribute_args # To be added in subclass constructor
-            )
+            **kwargs,  # Call-based extra arguments
+            **self.attribute_kwargs(
+                captum_inputs,
+                mask_features_by_token=self.mask_features_by_token,
+            ),  # General extra arguments
+            **self.attribute_args  # To be added in subclass constructor
+        )
         # print("[I]", args['inputs'].shape)
 
         # 2. Attribute
@@ -76,103 +82,112 @@ class Interpreter:
         vocab = self.predictor.vocab
 
         # Manually check for distilbert.
-        if isinstance(self.predictor, JWAttentionClassifier) or isinstance(self.predictor, MLP):
+        if isinstance(self.predictor, JWAttentionClassifier) or isinstance(
+            self.predictor, MLP
+        ):
             embedding = self.predictor.embedding
-        else: # DistillBert?
-            embedding = self.predictor.embeddings # Need to assure the embedding is always fetchable
-    
+        else:  # DistillBert?
+            embedding = (
+                self.predictor.embeddings
+            )  # Need to assure the embedding is always fetchable
+
         # Will only work on single-sentence input data
         pad_idx = vocab.get_padding_index()
-        pad_idxs = torch.full(inputs.shape[:2], fill_value=pad_idx, device=inputs.device)
+        pad_idxs = torch.full(
+            inputs.shape[:2], fill_value=pad_idx, device=inputs.device
+        )
         baselines = embedding(pad_idxs)
         # print(baselines.shape, inputs.shape)
 
         attr_kwargs = {
-            'inputs' : inputs,
-            'target': target,
-            'baselines' : baselines,
-            'additional_forward_args' : None # additional # set to additional
+            "inputs": inputs,
+            "target": target,
+            "baselines": baselines,
+            "additional_forward_args": None,  # additional # set to additional
         }
 
         if isinstance(self.predictor, DistilBertForSequenceClassification):
-            attr_kwargs['additional_forward_args'] = additional
+            attr_kwargs["additional_forward_args"] = additional
 
         # For methods that require a feature mask, define each token as one feature
         if mask_features_by_token:
             # see: https://captum.ai/api/lime.html for the definition of a feature mask
             feature_mask_tuple = tuple()
             # We only have single-input datasets for now
-            #for i in range(len(inputs)):
+            # for i in range(len(inputs)):
             #    input_tensor = inputs[i]
             bs, seq_len, emb_dim = inputs.shape
-            feature_mask = torch.tensor(list(range(bs * seq_len))).reshape([bs, seq_len, 1])
+            feature_mask = torch.tensor(list(range(bs * seq_len))).reshape(
+                [bs, seq_len, 1]
+            )
             feature_mask = feature_mask.to(inputs.device)
             feature_mask = feature_mask.expand(-1, -1, emb_dim)
             # feature_mask_tuple += (feature_mask,) # (bs, seq_len, emb_dim)
-            attr_kwargs['feature_mask'] = feature_mask
+            attr_kwargs["feature_mask"] = feature_mask
 
         return attr_kwargs
+
 
 # DeepLift
 class DeepLiftInterpreter(Interpreter, DeepLift):
     def __init__(self, model):
-        Interpreter.__init__(self, 'DeepLift', model)
+        Interpreter.__init__(self, "DeepLift", model)
         self.submodel = model.captum_sub_model()
         DeepLift.__init__(self, self.submodel)
+
 
 # DeepLiftShap
 # Errors out on <baselines> (tensor repeated?) TBD debug
 class DeepLiftShapInterpreter(Interpreter, DeepLiftShap):
     def __init__(self, model):
-        Interpreter.__init__(self, 'DeepLiftShap', model)
+        Interpreter.__init__(self, "DeepLiftShap", model)
         self.submodel = model.captum_sub_model()
         DeepLift.__init__(self, self.submodel)
 
+
 # GradientShap
 class GradientShapInterpreter(Interpreter, GradientShap):
-
     def __init__(self, model):
 
-        Interpreter.__init__(self, 'GradShap', model)
+        Interpreter.__init__(self, "GradShap", model)
 
         self.submodel = model.captum_sub_model()
         GradientShap.__init__(self, self.submodel)
 
+
 # IntegratedGradients
 class IntegratedGradientsInterpreter(Interpreter, IntegratedGradients):
-
     def __init__(self, model):
 
-        Interpreter.__init__(self, 'intgrad', model)
+        Interpreter.__init__(self, "intgrad", model)
 
         self.submodel = model.captum_sub_model()
         IntegratedGradients.__init__(self, self.submodel)
 
+
 # Lime
 class LIMEInterpreter(Interpreter, Lime):
-
-    def __init__(
-        self,
-        model,
-        mask_features_by_token = True,
-        attribute_args = {}
-    ):
-        Interpreter.__init__(self, 'lime', model, mask_features_by_token, attribute_args)
+    def __init__(self, model, mask_features_by_token=True, attribute_args={}):
+        Interpreter.__init__(
+            self, "lime", model, mask_features_by_token, attribute_args
+        )
         self.lin_model = SkLearnRidge()
         self.submodel = model.captum_sub_model()
         Lime.__init__(self, self.submodel, self.lin_model)
 
 
 INTERPRETERS = {
-    'deeplift': DeepLiftInterpreter,
-    'grad-shap': GradientShapInterpreter,
-    'deeplift-shap': DeepLiftShapInterpreter,
-    'int-grad': IntegratedGradientsInterpreter,
-    'lime': LIMEInterpreter
+    "deeplift": DeepLiftInterpreter,
+    "grad-shap": GradientShapInterpreter,
+    "deeplift-shap": DeepLiftShapInterpreter,
+    "int-grad": IntegratedGradientsInterpreter,
+    "lime": LIMEInterpreter,
 }
+
 
 def get_interpreter(key):
     return INTERPRETERS[key]
+
 
 ##########
 # Legacy #
@@ -184,108 +199,120 @@ def visualize_attributions(visualization_records):
     for record in visualization_records:
         # Each record is assumed to be a tuple
         print(record)
-        cast_records.append(visualization.VisualizationDataRecord(
-            *record
-            ))
+        cast_records.append(visualization.VisualizationDataRecord(*record))
     visualization.visualize_text(cast_records)
 
 
 def interpret_instance_lime(model, numericalized_instance):
-  device = next(iter(model.parameters())).device
-  linear_model = SkLearnRidge()
-  lime = Lime(model)
+    device = next(iter(model.parameters())).device
+    linear_model = SkLearnRidge()
+    lime = Lime(model)
 
-  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-  # Feature mask enumerates (word) features in each instance 
-  bsz, seq_len = 1, len(numericalized_instance)
-  feature_mask = torch.tensor(list(range(bsz*seq_len))).reshape([bsz, seq_len, 1])
-  feature_mask = feature_mask.to(device)
-  feature_mask = feature_mask.expand(-1, -1, model.embedding_dim)
+    numericalized_instance = numericalized_instance.unsqueeze(0)  # Add fake batch dim
+    # Feature mask enumerates (word) features in each instance
+    bsz, seq_len = 1, len(numericalized_instance)
+    feature_mask = torch.tensor(list(range(bsz * seq_len))).reshape([bsz, seq_len, 1])
+    feature_mask = feature_mask.to(device)
+    feature_mask = feature_mask.expand(-1, -1, model.embedding_dim)
 
-  attributions = lime.attribute(numericalized_instance,
-                                target=1, n_samples=1000,
-                                feature_mask=feature_mask) # n samples arg taken from court of xai
+    attributions = lime.attribute(
+        numericalized_instance, target=1, n_samples=1000, feature_mask=feature_mask
+    )  # n samples arg taken from court of xai
 
-  print(attributions.shape)
-  print('Lime Attributions:', attributions)
-  return attributions
+    print(attributions.shape)
+    print("Lime Attributions:", attributions)
+    return attributions
+
 
 def interpret_instance_deeplift(model, numericalized_instance):
 
-  _model = model.captum_sub_model()
-  dl = DeepLift(_model)
+    _model = model.captum_sub_model()
+    dl = DeepLift(_model)
 
-  # Should be done in model.prepare_inputs...
-  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-  lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-  logits, return_dict = model(numericalized_instance, lengths)
-  pred = logits.squeeze() # obtain prediction
-  scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
+    # Should be done in model.prepare_inputs...
+    numericalized_instance = numericalized_instance.unsqueeze(0)  # Add fake batch dim
+    lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
+    logits, return_dict = model(numericalized_instance, lengths)
+    pred = logits.squeeze()  # obtain prediction
+    scaled_pred = nn.Sigmoid()(pred).item()  # scale to probability
 
-  # Reference indices are just a bunch of padding indices
-  # token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
-  # reference_indices = token_reference.generate_reference(len(numericalized_instance), 
-  #                                                        device=next(iter(model.parameters())).device).unsqueeze(0)
-  with torch.no_grad():
-    embedded_instance = model.embedding(numericalized_instance)
-    # Pass embeddings to input
+    # Reference indices are just a bunch of padding indices
+    # token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
+    # reference_indices = token_reference.generate_reference(len(numericalized_instance),
+    #                                                        device=next(iter(model.parameters())).device).unsqueeze(0)
+    with torch.no_grad():
+        embedded_instance = model.embedding(numericalized_instance)
+        # Pass embeddings to input
 
-    outs, delta = dl.attribute(embedded_instance, return_convergence_delta=True)
-  print(outs)
-  return outs, scaled_pred, delta
+        outs, delta = dl.attribute(embedded_instance, return_convergence_delta=True)
+    print(outs)
+    return outs, scaled_pred, delta
 
 
 def interpret_instance_lig(model, numericalized_instance):
-  _model = model.captum_sub_model()
-  lig = LayerIntegratedGradients(_model, model.embedding) # LIG uses embedding data
+    _model = model.captum_sub_model()
+    lig = LayerIntegratedGradients(_model, model.embedding)  # LIG uses embedding data
 
-  numericalized_instance = numericalized_instance.unsqueeze(0) # Add fake batch dim
-  lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
-  logits, return_dict = model(numericalized_instance, lengths)
-  pred = logits.squeeze() # obtain prediction
-  # print(pred)
-  scaled_pred = nn.Sigmoid()(pred).item() # scale to probability
+    numericalized_instance = numericalized_instance.unsqueeze(0)  # Add fake batch dim
+    lengths = torch.tensor(len(numericalized_instance)).unsqueeze(0)
+    logits, return_dict = model(numericalized_instance, lengths)
+    pred = logits.squeeze()  # obtain prediction
+    # print(pred)
+    scaled_pred = nn.Sigmoid()(pred).item()  # scale to probability
 
-  # Reference indices are just a bunch of padding indices
-  token_reference = TokenReferenceBase(reference_token_idx=0) # Padding index is the reference
-  reference_indices = token_reference.generate_reference(len(numericalized_instance), 
-                                                          device=next(iter(model.parameters())).device).unsqueeze(0)
-  with torch.no_grad():
-    embedded_instance = model.embedding(numericalized_instance)
+    # Reference indices are just a bunch of padding indices
+    token_reference = TokenReferenceBase(
+        reference_token_idx=0
+    )  # Padding index is the reference
+    reference_indices = token_reference.generate_reference(
+        len(numericalized_instance), device=next(iter(model.parameters())).device
+    ).unsqueeze(0)
+    with torch.no_grad():
+        embedded_instance = model.embedding(numericalized_instance)
 
-    attributions, delta = lig.attribute(embedded_instance, reference_indices,
-                                        n_steps=500, return_convergence_delta=True)
-  print('IG Attributions:', attributions)
-  print('Convergence Delta:', delta)
-  return attributions, scaled_pred, delta
+        attributions, delta = lig.attribute(
+            embedded_instance,
+            reference_indices,
+            n_steps=500,
+            return_convergence_delta=True,
+        )
+    print("IG Attributions:", attributions)
+    print("Convergence Delta:", delta)
+    return attributions, scaled_pred, delta
 
 
 def legacy_interpret(model, meta):
-      sample_sentence = "this is a very nice movie".split()
-      sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
-      sample_instance = sample_instance.to(device)
+    sample_sentence = "this is a very nice movie".split()
+    sample_instance = torch.tensor(meta.vocab.numericalize(sample_sentence))
+    sample_instance = sample_instance.to(device)
 
-      # Try out various interpretability methods
-      # attributions = interpret_instance_lime(model, sample_instance)
+    # Try out various interpretability methods
+    # attributions = interpret_instance_lime(model, sample_instance)
 
-      # Layer integrated gradients
-      # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
+    # Layer integrated gradients
+    # attributions, prediction, delta = interpret_instance_lig(model, sample_instance)
 
-      # Deeplift
-      attributions, prediction, delta = interpret_instance_deeplift(model, sample_instance)
+    # Deeplift
+    attributions, prediction, delta = interpret_instance_deeplift(
+        model, sample_instance
+    )
 
-      print(attributions.shape) # B, T, E
-      attributions = attributions.sum(dim=2).squeeze(0)
-      attributions = attributions / torch.norm(attributions)
-      attributions = attributions.cpu().detach().numpy()
+    print(attributions.shape)  # B, T, E
+    attributions = attributions.sum(dim=2).squeeze(0)
+    attributions = attributions / torch.norm(attributions)
+    attributions = attributions.cpu().detach().numpy()
 
-      visualize_attributions([
-          (attributions,
-            prediction,
-            str(round(prediction)),
-            str(round(prediction)),
-            "Pos",
-            attributions.sum(),
-            sample_sentence,
-            delta)
-        ])
+    visualize_attributions(
+        [
+            (
+                attributions,
+                prediction,
+                str(round(prediction)),
+                str(round(prediction)),
+                "Pos",
+                attributions.sum(),
+                sample_sentence,
+                delta,
+            )
+        ]
+    )

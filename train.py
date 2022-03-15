@@ -63,10 +63,7 @@ def make_parser():
 
     # Representation tying arguments
     parser.add_argument(
-        "--tying",
-        type=float,
-        default=0.,
-        help="Weight tying lambda (if applicable)"
+        "--tying", type=float, default=0.0, help="Weight tying lambda (if applicable)"
     )
     # JWA arguments
     parser.add_argument(
@@ -112,7 +109,9 @@ def make_parser():
     parser.add_argument(
         "--l2", type=float, default=1e-5, help="l2 regularization (weight decay)"
     )
-    parser.add_argument("--bi", action="store_false", help="[DOn't USE] bidirectional encoder")
+    parser.add_argument(
+        "--bi", action="store_false", help="[DOn't USE] bidirectional encoder"
+    )
     parser.add_argument("--freeze", action="store_true", help="Freeze embeddings")
 
     # DistillBERT arguments
@@ -391,13 +390,13 @@ def train(model, data, optimizer, criterion, args, meta):
         loss = criterion(logits.view(-1, meta.num_targets).squeeze(), y)
 
         # Perform weight tying if required
-        if args.tying > 0. and args.model_name == 'JWA':
-          e = return_dict['embeddings'].transpose(0,1) # BxTxH -> TxBxH
-          h = return_dict['hiddens'] # TxBxH
+        if args.tying > 0.0 and args.model_name == "JWA":
+            e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
+            h = return_dict["hiddens"]  # TxBxH
 
-          # print(h.shape, e.shape)
-          reg = (h - e).norm(2, dim=-1).mean()
-          loss += args.tying * reg
+            # print(h.shape, e.shape)
+            reg = (h - e).norm(2, dim=-1).mean()
+            loss += args.tying * reg
 
         total_loss += float(loss)
         optimizer.zero_grad()
@@ -514,7 +513,12 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
         criterion.load_state_dict(c)
 
     # Construct interpreters
-    interpreters = {i: get_interpreter(i)(model) for i in args.interpreters}
+    interpreters = {}
+    for i in args.interpreters:
+        if i == "int-grad":
+            get_interpreter(i)(model, internal_batch_size=64)
+        else:
+            get_interpreter(i)(model)
     print(f"Interpreters: {' '.join(list(interpreters.keys()))}")
 
     # Construct correlation metrics
