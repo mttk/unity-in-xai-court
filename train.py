@@ -516,7 +516,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
     interpreters = {}
     for i in args.interpreters:
         if i == "int-grad":
-            get_interpreter(i)(model, internal_batch_size=64)
+            get_interpreter(i)(model, internal_batch_size=32)
         else:
             get_interpreter(i)(model)
     print(f"Interpreters: {' '.join(list(interpreters.keys()))}")

@@ -43,9 +43,8 @@ def compute_forgetfulness(epochwise_tensor):
     return torch.stack(out)
 
 
-class ActiveLearner:
-    def __init__(self, sampler, train_set, test_set, device, args, meta):
-        self.sampler = sampler
+class Experiment:
+    def __init__(self, train_set, test_set, device, args, meta):
         self.train_set = train_set
         self.test_set = test_set
         self.batch_size = args.batch_size
@@ -60,12 +59,11 @@ class ActiveLearner:
             train=False,
         )
 
-    def al_loop(
+    def run(
         self,
         create_model_fn,
         criterion,
         warm_start_size,
-        query_size,
         correlations,
     ):
         if warm_start_size == -1:
@@ -79,11 +77,6 @@ class ActiveLearner:
             )
             lab_mask[random_inds] = True
 
-        al_epochs = self.args.al_epochs
-        if al_epochs == -1:
-            unlab_size = self.args.max_train_size - lab_mask.sum()
-            al_epochs = np.int(np.ceil(unlab_size / query_size)) + 1
-
         results = {
             "train": [],
             "eval": [],
@@ -93,125 +86,97 @@ class ActiveLearner:
             "labeled": [],
             "cartography": {"train": [], "test": []},
         }
-        for al_epoch in range(1, al_epochs + 1):
-            logging.info(f"AL epoch: {al_epoch}/{al_epochs}")
-            results["labeled"].append(lab_mask.sum())
+        results["labeled"].append(lab_mask.sum())
 
-            # 1) Train model on labeled data.
-            logging.info(
-                f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data..."
+        # 1) Train model on labeled data.
+        logging.info(f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data...")
+        # Create new model: re-train scenario.
+        model = create_model_fn(self.args, self.meta)
+        model.to(self.device)
+
+        indices, *_ = np.where(lab_mask)
+        train_iter = make_iterable(
+            self.train_set,
+            self.device,
+            batch_size=self.batch_size,
+            train=False,
+            indices=indices,
+        )
+        optimizer = torch.optim.Adam(
+            model.parameters(), self.args.lr, weight_decay=self.args.l2
+        )
+        # Prepare interpreters
+        interpreters = {i: get_interpreter(i)(model) for i in self.args.interpreters}
+
+        train_results = []
+        eval_results = []
+        agreement_results = []
+        attributions_results = []
+        correlation_results = []
+        cartography_trends = {
+            "train": {"is_correct": [], "true_probs": []},
+            "test": {"is_correct": [], "true_probs": []},
+        }
+        for epoch in range(1, self.args.epochs + 1):
+            logging.info(f"Training epoch: {epoch}/{self.args.epochs}")
+            # a) Train for one epoch
+            result_dict_train, logits, y_true = self._train_model(
+                model, optimizer, criterion, train_iter
             )
-            # Create new model: re-train scenario.
-            model = create_model_fn(self.args, self.meta)
-            model.to(self.device)
+            train_results.append(result_dict_train)
 
-            indices, *_ = np.where(lab_mask)
-            train_iter = make_iterable(
-                self.train_set,
-                self.device,
-                batch_size=self.batch_size,
-                train=False,
-                indices=indices,
+            # b) Evaluate model (test set)
+            eval_result_dict = self._evaluate_model(model)
+            eval_results.append(eval_result_dict)
+
+            # c) Calculate intepretability metrics
+            logging.info("Calculating intepretability metrics...")
+            intepret_result_dict = interpret_evaluate(
+                interpreters,
+                model,
+                self.test_iter,
+                self.args,
+                self.meta,
+                use_rationales=False,
             )
-            optimizer = torch.optim.Adam(
-                model.parameters(), self.args.lr, weight_decay=self.args.l2
+            scores, raw_correlations = pairwise_correlation(
+                intepret_result_dict["attributions"], correlations
             )
-            # Prepare interpreters
-            interpreters = {
-                i: get_interpreter(i)(model) for i in sorted(self.args.interpreters)
-            }
-            train_results = []
-            eval_results = []
-            agreement_results = []
-            attributions_results = []
-            correlation_results = []
-            cartography_trends = {
-                "train": {"is_correct": [], "true_probs": []},
-                "test": {"is_correct": [], "true_probs": []},
-            }
-            for epoch in range(1, self.args.epochs + 1):
-                logging.info(f"Training epoch: {epoch}/{self.args.epochs}")
-                # a) Train for one epoch
-                result_dict_train, logits, y_true = self._train_model(
-                    model, optimizer, criterion, train_iter
-                )
-                train_results.append(result_dict_train)
+            agreement_results.append(scores)
+            correlation_results.append(raw_correlations)
+            attributions_results.append(intepret_result_dict["attributions"])
+            logging.info("Interpretability scores", scores)
 
-                # b) Evaluate model (test set)
-                eval_result_dict = self._evaluate_model(model)
-                eval_results.append(eval_result_dict)
+            # d) Calculate epoch cartography
+            logging.info("Calculating cartography...")
+            #   i) train set
+            is_correct, true_probs = self._cartography_epoch_train(logits, y_true)
+            cartography_trends["train"]["is_correct"].append(is_correct)
+            cartography_trends["train"]["true_probs"].append(true_probs)
 
-                # c) Calculate intepretability metrics
-                logging.info("Calculating intepretability metrics...")
-                intepret_result_dict = interpret_evaluate(
-                    interpreters,
-                    model,
-                    self.test_iter,
-                    self.args,
-                    self.meta,
-                    use_rationales=False,
-                )
-                scores, raw_correlations = pairwise_correlation(
-                    intepret_result_dict["attributions"], correlations
-                )
-                agreement_results.append(scores)
-                correlation_results.append(raw_correlations)
-                attributions_results.append(intepret_result_dict["attributions"])
-                logging.info("Interpretability scores", scores)
+            #   ii) test set
+            is_correct, true_probs = self._cartography_epoch_test(model)
+            cartography_trends["test"]["is_correct"].append(is_correct)
+            cartography_trends["test"]["true_probs"].append(true_probs)
 
-                # d) Calculate epoch cartography
-                logging.info("Calculating cartography...")
-                #   i) train set
-                is_correct, true_probs = self._cartography_epoch_train(logits, y_true)
-                cartography_trends["train"]["is_correct"].append(is_correct)
-                cartography_trends["train"]["true_probs"].append(true_probs)
+        # 2) Dataset cartography
+        logging.info("Computing dataset cartography...")
+        cartography_results = {}
+        cartography_results["train"] = self._compute_cartography(
+            cartography_trends["train"]
+        )
+        cartography_results["test"] = self._compute_cartography(
+            cartography_trends["test"]
+        )
 
-                #   ii) test set
-                is_correct, true_probs = self._cartography_epoch_test(model)
-                cartography_trends["test"]["is_correct"].append(is_correct)
-                cartography_trends["test"]["true_probs"].append(true_probs)
-
-            # 2) Dataset cartography
-            logging.info("Computing dataset cartography...")
-            cartography_results = {}
-            cartography_results["train"] = self._compute_cartography(
-                cartography_trends["train"]
-            )
-            cartography_results["test"] = self._compute_cartography(
-                cartography_trends["test"]
-            )
-
-            # 3) Retrieve active sample.
-            if not lab_mask.all():
-                logging.info("Retrieving AL sample...")
-                lab_inds, *_ = np.where(lab_mask)
-                unlab_inds, *_ = np.where(~lab_mask)
-                if len(unlab_inds) <= query_size:
-                    selected_inds = unlab_inds
-                else:
-                    model.eval()
-                    selected_inds = self.sampler.query(
-                        query_size=query_size,
-                        unlab_inds=unlab_inds,
-                        lab_inds=lab_inds,
-                        model=model,
-                        lab_mask=lab_mask,
-                        num_labels=self.meta.num_labels,
-                        num_targets=self.meta.num_targets,
-                        criterion=criterion,
-                    )
-
-                lab_mask[selected_inds] = True
-                logging.info(f"{len(selected_inds)} data points selected.")
-
-            # 3) Store results.
-            results["train"].append(train_results)
-            results["eval"].append(eval_results)
-            results["agreement"].append(agreement_results)
-            results["attributions"].append(attributions_results)
-            results["correlation"].append(correlation_results)
-            results["cartography"]["train"].append(cartography_results["train"])
-            results["cartography"]["test"].append(cartography_results["test"])
+        # 3) Store results.
+        results["train"].append(train_results)
+        results["eval"].append(eval_results)
+        results["agreement"].append(agreement_results)
+        results["attributions"].append(attributions_results)
+        results["correlation"].append(correlation_results)
+        results["cartography"]["train"].append(cartography_results["train"])
+        results["cartography"]["test"].append(cartography_results["test"])
 
         return results
 
@@ -238,7 +203,7 @@ class ActiveLearner:
             logit_list.append(logits)
 
             # Bookkeeping and cast label to float
-            accuracy, confusion_matrix = ActiveLearner.update_stats(
+            accuracy, confusion_matrix = Experiment.update_stats(
                 accuracy, confusion_matrix, logits, y
             )
             if logits.shape[-1] == 1:
@@ -248,13 +213,13 @@ class ActiveLearner:
             loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
 
             # Perform weight tying if required
-            if self.args.tying > 0. and self.args.model_name == 'JWA':
-              e = return_dict['embeddings'].transpose(0,1) # BxTxH -> TxBxH
-              h = return_dict['hiddens'] # TxBxH
+            if self.args.tying > 0.0 and self.args.model_name == "JWA":
+                e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
+                h = return_dict["hiddens"]  # TxBxH
 
-              # print(h.shape, e.shape)
-              reg = (h - e).norm(2, dim=-1).mean()
-              loss += self.args.tying * reg
+                # print(h.shape, e.shape)
+                reg = (h - e).norm(2, dim=-1).mean()
+                loss += self.args.tying * reg
 
             total_loss += float(loss)
 
@@ -296,7 +261,7 @@ class ActiveLearner:
                 logits, _ = model(x, lengths)
 
                 # Bookkeeping and cast label to float
-                accuracy, confusion_matrix = ActiveLearner.update_stats(
+                accuracy, confusion_matrix = Experiment.update_stats(
                     accuracy, confusion_matrix, logits, y
                 )
 

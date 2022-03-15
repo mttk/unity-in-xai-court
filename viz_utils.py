@@ -1,3 +1,4 @@
+from argparse import ArgumentError
 import os
 import itertools
 
@@ -8,40 +9,24 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from al.sampler_mapping import AL_SAMPLERS
-
 
 def load_results(base_dir="results/", dataset="IMDB", model="JWA"):
-    experiments = {}
+    file_name = f"{dataset}-{model}"
+    found = False
 
-    file_names = tuple(
-        f"{dataset}-{model}-{sampler}-all" for sampler in AL_SAMPLERS.keys()
-    )
     for filename in os.listdir(base_dir):
-        if filename.startswith(file_names) and filename.endswith(".pkl"):
+        if filename.startswith(file_name) and filename.endswith(".pkl"):
             with open(os.path.join(base_dir, filename), "rb") as f:
                 results, meta = pickle.load(f)
-                experiments[meta["al_sampler"]] = results
+                found = True
+                break
+
+    if not found:
+        raise ArgumentError(f"Result file was not found.")
 
     meta["interpret_pairs"] = list(itertools.combinations(meta["interpreters"], 2))
-    del meta["al_sampler"]
 
-    return experiments, meta
-
-
-def cartography_average(new_df_crt):
-    grouped = new_df_crt.groupby(["sampler", "al_iter"])
-    new_df_crt_avg = pd.DataFrame()
-    new_df_crt_avg["correctness"] = grouped.correctness.agg(np.stack).apply(
-        lambda x: np.median(x, 0)
-    )
-    new_df_crt_avg["confidence"] = grouped.confidence.apply(np.mean)
-    new_df_crt_avg["variability"] = grouped.variability.apply(np.mean)
-    new_df_crt_avg["forgetfulness"] = grouped.forgetfulness.agg(np.stack).apply(
-        lambda x: np.median(x, 0)
-    )
-    new_df_crt_avg["threshold_closeness"] = grouped.threshold_closeness.apply(np.mean)
-    return new_df_crt_avg
+    return results, meta
 
 
 def results_to_df(experiments, meta, mode="last"):
@@ -51,38 +36,23 @@ def results_to_df(experiments, meta, mode="last"):
         )
 
     extract_fn = MODE_DICT[mode]
-    dfs_tr = []
-    dfs_agr = []
-    dfs_crt_train = []
-    dfs_crt_test = []
-    dfs_attr = []
-    for sampler, exp_set in experiments.items():
-        df_tr, df_agr, df_crt_train, df_crt_test, df_attr = extract_fn(
-            exp_set, meta["interpret_pairs"]
-        )
-        df_tr["sampler"] = sampler
-        df_agr["sampler"] = sampler
-        df_crt_train["sampler"] = sampler
-        df_crt_test["sampler"] = sampler
-        dfs_tr.append(df_tr)
-        dfs_agr.append(df_agr)
-        dfs_crt_train.append(df_crt_train)
-        dfs_crt_test.append(df_crt_test)
-        dfs_attr.append(df_attr)
 
-    new_df_tr = pd.concat(dfs_tr)
-    new_df_agr = pd.concat(dfs_agr)
-    new_df_crt_train = pd.concat(dfs_crt_train)
-    new_df_crt_test = pd.concat(dfs_crt_test)
-    new_df_attr = pd.concat(dfs_attr)
+    df_tr, df_agr, df_crt_train, df_crt_test, df_attr = extract_fn(
+        experiments, meta["interpret_pairs"]
+    )
 
-    new_df_crt_avg_train = cartography_average(new_df_crt_train)
-    new_df_crt_avg_test = cartography_average(new_df_crt_test)
+    df_crt_avg_train = cartography_average(df_crt_train)
+    df_crt_avg_test = cartography_average(df_crt_test)
 
-    return new_df_tr, new_df_agr, new_df_crt_avg_train, new_df_crt_avg_test, new_df_attr
+    return (
+        df_tr,
+        df_agr,
+        df_crt_avg_train,
+        df_crt_avg_test,
+    )  # , df_crt_avg_train, df_crt_avg_test, df_attr
 
 
-def extract_cartography(crts, exp_index, iter_vals, labeled_vals):
+def extract_cartography(crts, exp_index):
     correctness = []
     confidence = []
     variability = []
@@ -97,8 +67,6 @@ def extract_cartography(crts, exp_index, iter_vals, labeled_vals):
 
     df_crt = pd.DataFrame(
         {
-            "al_iter": iter_vals,
-            "labeled": labeled_vals,
             "correctness": correctness,
             "confidence": confidence,
             "variability": variability,
@@ -107,13 +75,12 @@ def extract_cartography(crts, exp_index, iter_vals, labeled_vals):
         }
     )
     df_crt["experiment"] = exp_index
-    df_crt.set_index(["experiment", "al_iter"], inplace=True)
+    df_crt.set_index("experiment", inplace=True)
     return df_crt
 
 
 def extract_attribution(attribution, exp_index):
-    # Retrieve attributions from the last AL iter
-    attribution_dict = attribution[-1][0]
+    attribution_dict = attribution
     df = pd.DataFrame(attribution_dict)
     df["experiment"] = exp_index
     df["example"] = range(len(df))
@@ -133,17 +100,14 @@ def extract_last_epoch(exp_set, interpret_pairs):
         test = experiment["eval"]
         test_vals = [te[-1]["accuracy"] for te in test]
         labeled_vals = experiment["labeled"]
-        iter_vals = list(range(len(labeled_vals)))
         df_tr = pd.DataFrame(
             {
-                "al_iter": iter_vals,
-                "labeled": labeled_vals,
                 "train_loss": train_vals,
                 "test_accuracy": test_vals,
             }
         )
         df_tr["experiment"] = exp_index
-        df_tr.set_index(["experiment", "al_iter"], inplace=True)
+        df_tr.set_index("experiment", inplace=True)
 
         agreement_vals = []
         interpret_vals = []
@@ -156,22 +120,18 @@ def extract_last_epoch(exp_set, interpret_pairs):
 
         df_agr = pd.DataFrame(
             {
-                "al_iter": iter_vals * len(interpret_pairs),
-                "labeled": labeled_vals * len(interpret_pairs),
                 "agreement": agreement_vals,
                 "correlation": correlation_vals,
                 "interpreter": interpret_vals,
             }
         )
         df_agr["experiment"] = exp_index
-        df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
+        df_agr.set_index(["experiment", "interpreter"], inplace=True)
 
         df_crt_train = extract_cartography(
-            experiment["cartography"]["train"], exp_index, iter_vals, labeled_vals
+            experiment["cartography"]["train"], exp_index
         )
-        df_crt_test = extract_cartography(
-            experiment["cartography"]["test"], exp_index, iter_vals, labeled_vals
-        )
+        df_crt_test = extract_cartography(experiment["cartography"]["test"], exp_index)
 
         df_attr = extract_attribution(experiment["attributions"], exp_index)
 
@@ -195,6 +155,7 @@ def extract_best_epoch(exp_set, interpret_pairs):
     dfs_crt_train = []
     dfs_crt_test = []
     dfs_attr = []
+
     for exp_index, experiment in enumerate(exp_set):
         train = experiment["train"]
         test = experiment["eval"]
@@ -241,11 +202,9 @@ def extract_best_epoch(exp_set, interpret_pairs):
         df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
 
         df_crt_train = extract_cartography(
-            experiment["cartography"]["train"], exp_index, iter_vals, labeled_vals
+            experiment["cartography"]["train"], exp_index
         )
-        df_crt_test = extract_cartography(
-            experiment["cartography"]["test"], exp_index, iter_vals, labeled_vals
-        )
+        df_crt_test = extract_cartography(experiment["cartography"]["test"], exp_index)
 
         df_attr = extract_attribution(experiment["attributions"], exp_index)
 
@@ -261,6 +220,16 @@ def extract_best_epoch(exp_set, interpret_pairs):
     new_df_crt_test = pd.concat(dfs_crt_test)
     new_df_attr = pd.concat(dfs_attr)
     return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test, new_df_attr
+
+
+def cartography_average(df):
+    new_df = pd.DataFrame()
+    new_df["correctness"] = [np.median(np.stack(df.correctness.values), 0)]
+    new_df["confidence"] = [df.confidence.agg(np.mean)]
+    new_df["variability"] = [df.variability.agg(np.mean)]
+    new_df["forgetfulness"] = [np.median(np.stack(df.forgetfulness.values), 0)]
+    new_df["threshold_closeness"] = [df.threshold_closeness.agg(np.mean)]
+    return new_df
 
 
 def df_train_average(df, groupby=["al_iter", "sampler"]):
