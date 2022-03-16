@@ -77,17 +77,6 @@ class Experiment:
             )
             lab_mask[random_inds] = True
 
-        results = {
-            "train": [],
-            "eval": [],
-            "agreement": [],
-            "attributions": [],
-            "correlation": [],
-            "labeled": [],
-            "cartography": {"train": [], "test": []},
-        }
-        results["labeled"].append(lab_mask.sum())
-
         # 1) Train model on labeled data.
         logging.info(f"Training on {lab_mask.sum()}/{lab_mask.size} labeled data...")
         # Create new model: re-train scenario.
@@ -170,13 +159,15 @@ class Experiment:
         )
 
         # 3) Store results.
-        results["train"].append(train_results)
-        results["eval"].append(eval_results)
-        results["agreement"].append(agreement_results)
-        results["attributions"].append(attributions_results)
-        results["correlation"].append(correlation_results)
-        results["cartography"]["train"].append(cartography_results["train"])
-        results["cartography"]["test"].append(cartography_results["test"])
+        results = {}
+        results["train"] = train_results
+        results["eval"] = eval_results
+        results["agreement"] = agreement_results
+        results["attributions"] = attributions_results
+        results["correlation"] = correlation_results
+        results["cartography"] = {}
+        results["cartography"]["train"] = cartography_results["train"]
+        results["cartography"]["test"] = cartography_results["test"]
 
         return results
 

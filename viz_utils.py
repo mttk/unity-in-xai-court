@@ -29,267 +29,162 @@ def load_results(base_dir="results/", dataset="IMDB", model="JWA"):
     return results, meta
 
 
-def results_to_df(experiments, meta, mode="last"):
-    if mode not in MODE_DICT:
-        raise ValueError(
-            f"Mode {mode} is not supported. Choose 'last' or 'best' epoch."
-        )
-
-    extract_fn = MODE_DICT[mode]
-
-    df_tr, df_agr, df_crt_train, df_crt_test, df_attr = extract_fn(
+def results_to_df(experiments, meta):
+    df_tr, df_agr, df_crt_train, df_crt_test, df_attr = extract_data(
         experiments, meta["interpret_pairs"]
     )
-
-    df_crt_avg_train = cartography_average(df_crt_train)
-    df_crt_avg_test = cartography_average(df_crt_test)
 
     return (
         df_tr,
         df_agr,
-        df_crt_avg_train,
-        df_crt_avg_test,
-    )  # , df_crt_avg_train, df_crt_avg_test, df_attr
-
-
-def extract_cartography(crts, exp_index):
-    correctness = []
-    confidence = []
-    variability = []
-    forgetfulness = []
-    threshold_closeness = []
-    for crt in crts:
-        correctness.append(crt["correctness"])
-        confidence.append(crt["confidence"])
-        variability.append(crt["variability"])
-        forgetfulness.append(crt["forgetfulness"])
-        threshold_closeness.append(crt["threshold_closeness"])
-
-    df_crt = pd.DataFrame(
-        {
-            "correctness": correctness,
-            "confidence": confidence,
-            "variability": variability,
-            "forgetfulness": forgetfulness,
-            "threshold_closeness": threshold_closeness,
-        }
+        df_crt_train,
+        df_crt_test,
+        df_attr,
     )
+
+
+def extract_data(exp_set, interpret_pairs):
+    dfs_tr = []
+    dfs_agr = []
+    dfs_crt_train = []
+    dfs_crt_test = []
+    dfs_attr = []
+    for exp_index, experiment in enumerate(exp_set):
+        train = experiment["train"]
+        train_vals = [tr["loss"] for tr in train]
+        test = experiment["eval"]
+        test_vals = [te["accuracy"] for te in test]
+        df_tr = pd.DataFrame(
+            {
+                "epoch": range(len(train_vals)),
+                "train_loss": train_vals,
+                "test_accuracy": test_vals,
+            }
+        )
+        df_tr["experiment"] = exp_index
+        df_tr.set_index(["experiment", "epoch"], inplace=True)
+
+        agreement_vals = []
+        interpret_vals = []
+        correlation_vals = []
+        for ip in interpret_pairs:
+            for a, corr in zip(experiment["agreement"], experiment["correlation"]):
+                interpret_vals.append(ip)
+                agreement_vals.append(a[ip])
+                correlation_vals.append(np.array(corr[ip]))
+
+        df_agr = pd.DataFrame(
+            {
+                "epoch": list(range(len(train_vals))) * len(interpret_pairs),
+                "agreement": agreement_vals,
+                "correlation": correlation_vals,
+                "interpreter": interpret_vals,
+            }
+        )
+        df_agr["experiment"] = exp_index
+        df_agr.set_index(["experiment", "epoch", "interpreter"], inplace=True)
+
+        df_crt_train = extract_cartography(
+            experiment["cartography"]["train"], exp_index
+        )
+        df_crt_test = extract_cartography(experiment["cartography"]["test"], exp_index)
+
+        df_attr = extract_attribution(experiment["attributions"], exp_index)
+
+        dfs_tr.append(df_tr)
+        dfs_agr.append(df_agr)
+        dfs_crt_train.append(df_crt_train)
+        dfs_crt_test.append(df_crt_test)
+        dfs_attr.append(df_attr)
+
+    new_df_tr = pd.concat(dfs_tr)
+    new_df_agr = pd.concat(dfs_agr)
+    new_df_crt_train = cartography_average(pd.concat(dfs_crt_train))
+    new_df_crt_test = cartography_average(pd.concat(dfs_crt_test))
+    new_df_attr = pd.concat(dfs_attr)
+
+    return (
+        new_df_tr,
+        new_df_agr,
+        new_df_crt_train,
+        new_df_crt_test,
+        new_df_attr,
+    )
+
+
+def extract_cartography(crt, exp_index):
+    df_crt = pd.DataFrame(crt)
     df_crt["experiment"] = exp_index
-    df_crt.set_index("experiment", inplace=True)
+    df_crt["example"] = range(len(df_crt))
+    df_crt.set_index(["experiment", "example"], inplace=True)
     return df_crt
 
 
-def extract_attribution(attribution, exp_index):
-    attribution_dict = attribution
-    df = pd.DataFrame(attribution_dict)
+def extract_attribution(attributions, exp_index):
+    df = pd.DataFrame(attributions)
     df["experiment"] = exp_index
-    df["example"] = range(len(df))
-    df.set_index(["experiment", "example"], inplace=True)
+    df["epoch"] = range(len(df))
+    df.set_index(["experiment", "epoch"], inplace=True)
     return df
 
 
-def extract_last_epoch(exp_set, interpret_pairs):
-    dfs_tr = []
-    dfs_agr = []
-    dfs_crt_train = []
-    dfs_crt_test = []
-    dfs_attr = []
-    for exp_index, experiment in enumerate(exp_set):
-        train = experiment["train"]
-        train_vals = [tr[-1]["loss"] for tr in train]
-        test = experiment["eval"]
-        test_vals = [te[-1]["accuracy"] for te in test]
-        labeled_vals = experiment["labeled"]
-        df_tr = pd.DataFrame(
-            {
-                "train_loss": train_vals,
-                "test_accuracy": test_vals,
-            }
-        )
-        df_tr["experiment"] = exp_index
-        df_tr.set_index("experiment", inplace=True)
-
-        agreement_vals = []
-        interpret_vals = []
-        correlation_vals = []
-        for ip in interpret_pairs:
-            for a, corr in zip(experiment["agreement"], experiment["correlation"]):
-                interpret_vals.append(ip)
-                agreement_vals.append(a[-1][ip])
-                correlation_vals.append(np.array(corr[-1][ip]))
-
-        df_agr = pd.DataFrame(
-            {
-                "agreement": agreement_vals,
-                "correlation": correlation_vals,
-                "interpreter": interpret_vals,
-            }
-        )
-        df_agr["experiment"] = exp_index
-        df_agr.set_index(["experiment", "interpreter"], inplace=True)
-
-        df_crt_train = extract_cartography(
-            experiment["cartography"]["train"], exp_index
-        )
-        df_crt_test = extract_cartography(experiment["cartography"]["test"], exp_index)
-
-        df_attr = extract_attribution(experiment["attributions"], exp_index)
-
-        dfs_tr.append(df_tr)
-        dfs_agr.append(df_agr)
-        dfs_crt_train.append(df_crt_train)
-        dfs_crt_test.append(df_crt_test)
-        dfs_attr.append(df_attr)
-
-    new_df_tr = pd.concat(dfs_tr)
-    new_df_agr = pd.concat(dfs_agr)
-    new_df_crt_train = pd.concat(dfs_crt_train)
-    new_df_crt_test = pd.concat(dfs_crt_test)
-    new_df_attr = pd.concat(dfs_attr)
-    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test, new_df_attr
-
-
-def extract_best_epoch(exp_set, interpret_pairs):
-    dfs_tr = []
-    dfs_agr = []
-    dfs_crt_train = []
-    dfs_crt_test = []
-    dfs_attr = []
-
-    for exp_index, experiment in enumerate(exp_set):
-        train = experiment["train"]
-        test = experiment["eval"]
-        train_vals, test_vals = [], []
-        indices = []
-        for tr, te in zip(train, test):
-            accs = [t["accuracy"] for t in te]
-            i = np.argmax(accs)
-            indices.append(i)
-            train_vals.append(tr[i]["loss"])
-            test_vals.append(te[i]["accuracy"])
-        labeled_vals = experiment["labeled"]
-        iter_vals = list(range(len(labeled_vals)))
-        df_tr = pd.DataFrame(
-            {
-                "al_iter": iter_vals,
-                "labeled": labeled_vals,
-                "train_loss": train_vals,
-                "test_accuracy": test_vals,
-            }
-        )
-        df_tr["experiment"] = exp_index
-        df_tr.set_index(["experiment", "al_iter"], inplace=True)
-
-        agreement_vals = []
-        interpret_vals = []
-        correlation_vals = []
-        for ip in interpret_pairs:
-            for a, corr in zip(experiment["agreement"], experiment["correlation"]):
-                interpret_vals.append(ip)
-                agreement_vals.append(a[-1][ip])
-                correlation_vals.append(np.array(corr[-1][ip]))
-
-        df_agr = pd.DataFrame(
-            {
-                "al_iter": iter_vals * len(interpret_pairs),
-                "labeled": labeled_vals * len(interpret_pairs),
-                "agreement": agreement_vals,
-                "correlation": correlation_vals,
-                "interpreter": interpret_vals,
-            }
-        )
-        df_agr["experiment"] = exp_index
-        df_agr.set_index(["experiment", "al_iter", "interpreter"], inplace=True)
-
-        df_crt_train = extract_cartography(
-            experiment["cartography"]["train"], exp_index
-        )
-        df_crt_test = extract_cartography(experiment["cartography"]["test"], exp_index)
-
-        df_attr = extract_attribution(experiment["attributions"], exp_index)
-
-        dfs_tr.append(df_tr)
-        dfs_agr.append(df_agr)
-        dfs_crt_train.append(df_crt_train)
-        dfs_crt_test.append(df_crt_test)
-        dfs_attr.append(df_attr)
-
-    new_df_tr = pd.concat(dfs_tr)
-    new_df_agr = pd.concat(dfs_agr)
-    new_df_crt_train = pd.concat(dfs_crt_train)
-    new_df_crt_test = pd.concat(dfs_crt_test)
-    new_df_attr = pd.concat(dfs_attr)
-    return new_df_tr, new_df_agr, new_df_crt_train, new_df_crt_test, new_df_attr
-
-
 def cartography_average(df):
+    grouped = df.groupby(level=1)
     new_df = pd.DataFrame()
-    new_df["correctness"] = [np.median(np.stack(df.correctness.values), 0)]
-    new_df["confidence"] = [df.confidence.agg(np.mean)]
-    new_df["variability"] = [df.variability.agg(np.mean)]
-    new_df["forgetfulness"] = [np.median(np.stack(df.forgetfulness.values), 0)]
-    new_df["threshold_closeness"] = [df.threshold_closeness.agg(np.mean)]
+    new_df["correctness"] = grouped.correctness.agg(np.median)
+    new_df["confidence"] = grouped.confidence.agg(np.mean)
+    new_df["variability"] = grouped.variability.agg(np.mean)
+    new_df["forgetfulness"] = grouped.forgetfulness.agg(np.median)
+    new_df["threshold_closeness"] = grouped.threshold_closeness.agg(np.mean)
     return new_df
 
 
-def df_train_average(df, groupby=["al_iter", "sampler"]):
-    new_df = df.groupby(groupby).aggregate("mean")
-    new_df.labeled = new_df.labeled.astype(int)
-    return new_df
+# def df_train_average(df, groupby=["al_iter", "sampler"]):
+#     new_df = df.groupby(groupby).aggregate("mean")
+#     new_df.labeled = new_df.labeled.astype(int)
+#     return new_df
 
 
-def df_attr_average(df, groupby="example"):
-    new_df = df.groupby(groupby).aggregate("mean")
-    return new_df
+# def df_attr_average(df, groupby="example"):
+#     new_df = df.groupby(groupby).aggregate("mean")
+#     return new_df
 
 
-def df_agr_average(df, groupby=["al_iter", "sampler", "interpreter"]):
-    grouped = df.groupby(groupby)
-    new_df = pd.DataFrame()
-    new_df["correlation"] = grouped.correlation.apply(np.mean)
-    new_df["aggrement"] = grouped.agreement.agg("mean")
-    new_df["labeled"] = grouped.labeled.agg("min")
-    return new_df
+# def df_agr_average(df, groupby=["al_iter", "sampler", "interpreter"]):
+#     grouped = df.groupby(groupby)
+#     new_df = pd.DataFrame()
+#     new_df["correlation"] = grouped.correlation.apply(np.mean)
+#     new_df["aggrement"] = grouped.agreement.agg("mean")
+#     new_df["labeled"] = grouped.labeled.agg("min")
+#     return new_df
 
 
-def plot_al_accuracy(data, figsize=(12, 8), ci=90):
-    plt.figure(figsize=figsize)
-    sns.lineplot(
-        data=data,
-        x="labeled",
-        y="test_accuracy",
-        hue="sampler",
-        style="sampler",
-        markers=True,
-        dashes=False,
-        ci=ci,
-    )
-
-
-def plot_experiment_set(df_tr, df_agr, meta, sampler, figsize=(12, 16)):
-    df_tr_filt = df_tr[df_tr.sampler == sampler]
-    df_agr_filt = df_agr[df_agr.sampler == sampler]
+def plot_experiment(df_tr, df_agr, meta, figsize=(12, 16)):
     _, axs = plt.subplots(3, figsize=figsize, sharex=True)
-    axs[0].set_title(f"{meta['dataset']} - {meta['model']} - {sampler}")
-    sns.lineplot(ax=axs[0], data=df_tr_filt, x="labeled", y="train_loss", color="r")
-    sns.lineplot(ax=axs[1], data=df_tr_filt, x="labeled", y="test_accuracy", color="g")
+    axs[0].set_title(f"{meta['dataset']} - {meta['model']}")
+    sns.lineplot(ax=axs[0], data=df_tr, x="epoch", y="train_loss", color="r", ci="sd")
+    sns.lineplot(
+        ax=axs[1], data=df_tr, x="epoch", y="test_accuracy", color="g", ci="sd"
+    )
     g = sns.lineplot(
         ax=axs[2],
-        data=df_agr_filt,
-        x="labeled",
+        data=df_agr,
+        x="epoch",
         y="agreement",
         hue="interpreter",
         style="interpreter",
+        ci="sd",
         markers=True,
-        dashes=False,
+        dashes=True,
     )
     g.legend(loc="center right", bbox_to_anchor=(1.3, 0.5), ncol=1)
+    g.set(xticks=range(meta["epochs_per_train"]))
     plt.show()
 
 
-def scatter_it(df, meta, hue_metric="correct", show_hist=True):
-    # Subsample data to plot, so the plot is not too busy.
+def plot_cartography(df, meta, hue_metric="correct", show_hist=True):
     dataframe = df
+    # Subsample data to plot, so the plot is not too busy.
     #     dataframe.sample(
     #         n=25000 if dataframe.shape[0] > 25000 else len(dataframe)
     #     )
@@ -431,41 +326,3 @@ def scatter_it(df, meta, hue_metric="correct", show_hist=True):
 
     fig.tight_layout()
     return fig
-
-
-def plot_cartography(
-    df_crt, sampler, al_iter, meta, hue_metric="correct", show_hist=True
-):
-    df = convert_cartography_df(df_crt, sampler, al_iter)
-    return scatter_it(df, meta, hue_metric=hue_metric, show_hist=show_hist)
-
-
-def convert_cartography_df(df, sampler, al_iter):
-    df_i = df.loc[(sampler, al_iter)]
-    new_df = pd.DataFrame(
-        {
-            "correctness": df_i.correctness.tolist(),
-            "confidence": df_i.confidence.tolist(),
-            "variability": df_i.variability.tolist(),
-            "forgetfulness": df_i.forgetfulness.tolist(),
-            "threshold_closeness": df_i.threshold_closeness.tolist(),
-        }
-    )
-
-    return new_df
-
-
-MODE_DICT = {"last": extract_last_epoch, "best": extract_best_epoch}
-
-SAMPLERS = [
-    "random",
-    "margin",
-    "entropy",
-    "badge",
-    "margin_dropout",
-    "entropy_dropout",
-    "batch_bald",
-    "anti_entropy",
-    "core_set",
-    "kmeans",
-]

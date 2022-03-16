@@ -186,42 +186,6 @@ def make_parser():
 
     # Active learning arguments
     parser.add_argument(
-        "--al-samplers",
-        nargs="+",
-        default=["random", "entropy"],
-        choices=[
-            "random",
-            "least_confident",
-            "margin",
-            "entropy",
-            "kmeans",
-            "least_confident_dropout",
-            "margin_dropout",
-            "entropy_dropout",
-            "badge",
-            "core_set",
-            "batch_bald",
-            "most_confident",
-            "anti_margin",
-            "anti_entropy",
-            "anti_kmeans",
-            "anti_core_set",
-            "entropy_sklearn",
-            "margin_sklearn",
-            "anti_entropy_sklearn",
-        ],
-        help="Specify a list of active learning samplers.",
-    )
-    parser.add_argument(
-        "--al-epochs",
-        type=int,
-        default=-1,
-        help="Number of AL epochs (-1 uses the whole train set)",
-    )
-    parser.add_argument(
-        "--query-size", type=int, default=50, help="Active learning query size."
-    )
-    parser.add_argument(
         "--warm-start-size", type=int, default=50, help="Initial AL batch size."
     )
     parser.add_argument(

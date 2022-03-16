@@ -44,7 +44,6 @@ if __name__ == "__main__":
         "dataset": args.data,
         "model": args.model_name,
         "warm_start_size": args.warm_start_size,
-        "query_size": args.query_size,
         "batch_size": args.batch_size,
         "epochs_per_train": args.epochs,
         "seeds": seeds,
