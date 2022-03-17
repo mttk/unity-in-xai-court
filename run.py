@@ -51,7 +51,6 @@ if __name__ == "__main__":
         "interpreters": args.interpreters,
     }
     logging.info(meta_info)
-    meta_info["test_lengths"] = test_lengths
 
     result_list = []
     for i, seed in zip(range(1, args.repeat + 1), seeds):
@@ -76,6 +75,8 @@ if __name__ == "__main__":
             meta.num_targets = meta.num_labels
 
         experiment = Experiment(train, test, device, args, meta)
+        meta_info["test_lengths"] = experiment.test_lengths.tolist()
+        meta_info["test_mapping"] = experiment.get_id_mapping()
 
         results = experiment.run(
             create_model_fn=initialize_model,

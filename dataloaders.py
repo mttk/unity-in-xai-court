@@ -296,6 +296,7 @@ def load_imdb(
     if tokenizer is None:
         vocab = Vocab(max_size=max_size)
         fields = [
+            Field("id"),
             Field(
                 "text",
                 numericalizer=vocab,

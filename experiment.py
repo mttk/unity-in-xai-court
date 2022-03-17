@@ -59,6 +59,9 @@ class Experiment:
             train=False,
         )
 
+        self.test_lengths = self.extract_lengths()
+        self.id_mapping = self.get_id_mapping()
+
     def run(
         self,
         create_model_fn,
@@ -351,3 +354,18 @@ class Experiment:
         cartography_results["threshold_closeness"] = conf * (1 - conf)
 
         return cartography_results
+
+    def extract_lengths(self):
+        len_list = []
+        for batch in self.test_iter:
+            _, lenghts = batch.text
+            len_list.append(lenghts.cpu())
+
+        return torch.cat(len_list)
+
+    def get_id_mapping(self):
+        mapping_list = []
+        for batch in self.test_iter:
+            mapping_list.extend(batch.id)
+
+        return [int(id) for ids in mapping_list for id in ids]
