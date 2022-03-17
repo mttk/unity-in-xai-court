@@ -40,6 +40,7 @@ if __name__ == "__main__":
     )
 
     args.interpreters = sorted(args.interpreters)
+    test_lengths = [len(ex.text[1]) for ex in test.examples]
     meta_info = {
         "dataset": args.data,
         "model": args.model_name,
@@ -50,6 +51,7 @@ if __name__ == "__main__":
         "interpreters": args.interpreters,
     }
     logging.info(meta_info)
+    meta_info["test_lengths"] = test_lengths
 
     result_list = []
     for i, seed in zip(range(1, args.repeat + 1), seeds):

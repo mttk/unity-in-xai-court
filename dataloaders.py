@@ -279,6 +279,7 @@ class MaxLenHook:
     def __call__(self, raw, tokenized):
         return raw, tokenized[: self.max_len]
 
+
 def load_imdb(
     tokenizer=None,
     train_path="data/IMDB/train.csv",
@@ -456,21 +457,21 @@ def test_load_tse_rationale():
 def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
-        fields = [
-            Field(
+        fields = {
+            "text": Field(
                 "text",
                 numericalizer=vocab,
                 include_lengths=True,
                 posttokenize_hooks=[MaxLenHook(max_seq_len)],
             ),
-            LabelField("label"),
-        ]
+            "label": LabelField("label"),
+        }
     else:
         # Use BERT subword tokenization
         vocab = None
         pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
-        fields = [
-            Field(
+        fields = {
+            "text": Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
                 padding_token=pad_index,
@@ -478,9 +479,10 @@ def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
                 include_lengths=True,
                 posttokenize_hooks=[MaxLenHook(max_seq_len)],
             ),
-            LabelField("label"),
-        ]
+            "label": LabelField("label"),
+        }
     train, val, test = SST.get_dataset_splits(fields=fields)
+    train.finalize_fields()
     return (train, val, test), vocab
 
 

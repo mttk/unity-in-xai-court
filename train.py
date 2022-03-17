@@ -34,6 +34,7 @@ dataset_loaders = {
     "IMDB-sentences": load_imdb_sentences,
     "TSE": load_tse,
     "TREC": load_trec,
+    "SST": load_sst,
 }
 
 models = {
@@ -49,7 +50,7 @@ def make_parser():
         "--data",
         type=str,
         default="IMDB",
-        help="Data corpus: [IMDB, IMDB-rationale, TSE, TREC]",
+        help="Data corpus: [IMDB, IMDB-rationale, TSE, TREC, SST]",
     )
     parser.add_argument(
         "--model-name", type=str, default="JWA", help="Model: [JWA, MLP, DBERT]"

@@ -9,6 +9,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from scipy.stats import pearsonr
+
 
 def load_results(base_dir="results/", dataset="IMDB", model="JWA"):
     file_name = f"{dataset}-{model}"
@@ -121,11 +123,16 @@ def extract_cartography(crt, exp_index):
 
 
 def extract_attribution(attributions, exp_index):
-    df = pd.DataFrame(attributions)
-    df["experiment"] = exp_index
-    df["epoch"] = range(len(df))
-    df.set_index(["experiment", "epoch"], inplace=True)
-    return df
+    dfs = []
+    for i, att_dict in enumerate(attributions):
+        df = pd.DataFrame(att_dict)
+        df["epoch"] = i
+        df["example"] = range(len(df))
+        dfs.append(df)
+    con_df = pd.concat(dfs)
+    con_df["experiment"] = exp_index
+    con_df.set_index(["experiment", "epoch", "example"], inplace=True)
+    return con_df
 
 
 def cartography_average(df):
@@ -136,6 +143,14 @@ def cartography_average(df):
     new_df["variability"] = grouped.variability.agg(np.mean)
     new_df["forgetfulness"] = grouped.forgetfulness.agg(np.median)
     new_df["threshold_closeness"] = grouped.threshold_closeness.agg(np.mean)
+    return new_df
+
+
+def agreement_average(df):
+    grouped = df.groupby(level=[1, 2])
+    new_df = pd.DataFrame()
+    new_df["agreement"] = grouped.agreement.agg(np.mean)
+    new_df["correlation"] = grouped.correlation.agg(np.mean)
     return new_df
 
 
@@ -326,3 +341,68 @@ def plot_cartography(df, meta, hue_metric="correct", show_hist=True):
 
     fig.tight_layout()
     return fig
+
+
+def plot_correlations(df_agr, df_crt, meta, figsize=(10, 18), print_flag=False):
+    df_agr_avg = agreement_average(df_agr)
+    corr_vals = []
+    for (epoch, ip), row in df_agr_avg.iterrows():
+        if print_flag:
+            print(f"Epoch {epoch}")
+            print("=" * 100)
+            print(f"\tInterpreter pair: {ip}")
+        for key in [
+            "correctness",
+            "confidence",
+            "variability",
+            "forgetfulness",
+            "threshold_closeness",
+        ]:
+            corr = pearsonr(row["correlation"], df_crt[key])
+            val = {
+                "interpreter": ip,
+                "epoch": epoch,
+                "correlation": corr[0],
+                "p-value": corr[1],
+                "attribute": key,
+            }
+            corr_vals.append(val)
+            if print_flag:
+                print(f"\t\t agreement vs. {key}: {corr}")
+
+        corr = pearsonr(row["correlation"], meta["test_lengths"])
+        val = {
+            "interpreter": ip,
+            "epoch": epoch,
+            "correlation": corr[0],
+            "p-value": corr[1],
+            "attribute": "length",
+        }
+        corr_vals.append(val)
+        if print_flag:
+            print(f"\t\t agreement vs. length: {corr}")
+            print()
+
+    df = pd.DataFrame(corr_vals)
+
+    ips = meta["interpret_pairs"]
+    _, axs = plt.subplots(len(ips), figsize=figsize, sharex=True)
+
+    for i, ip in enumerate(ips):
+        df_filt = df[df.interpreter == ip]
+        axs[i].set_title(ip)
+        g = sns.lineplot(
+            ax=axs[i],
+            data=df_filt,
+            x="epoch",
+            y="correlation",
+            hue="attribute",
+            style="attribute",
+            markers=True,
+            dashes=True,
+        )
+        g.axhline(0, color="gray")
+        g.legend(loc="center right", bbox_to_anchor=(1.3, 0.5), ncol=1)
+        g.set(xticks=range(meta["epochs_per_train"]))
+
+    return df
