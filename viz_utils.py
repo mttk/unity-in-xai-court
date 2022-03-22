@@ -101,8 +101,8 @@ def extract_data(exp_set, interpret_pairs):
 
     new_df_tr = pd.concat(dfs_tr)
     new_df_agr = pd.concat(dfs_agr)
-    new_df_crt_train = cartography_average(pd.concat(dfs_crt_train))
-    new_df_crt_test = cartography_average(pd.concat(dfs_crt_test))
+    new_df_crt_train = pd.concat(dfs_crt_train)
+    new_df_crt_test = pd.concat(dfs_crt_test)
     new_df_attr = pd.concat(dfs_attr)
 
     return (
@@ -154,6 +154,12 @@ def agreement_average(df):
     return new_df
 
 
+def attribution_average(df):
+    grouped = df.groupby(level=[1, 2])
+    new_df = grouped.agg(np.mean)
+    return new_df
+
+
 # def df_train_average(df, groupby=["al_iter", "sampler"]):
 #     new_df = df.groupby(groupby).aggregate("mean")
 #     new_df.labeled = new_df.labeled.astype(int)
@@ -198,7 +204,7 @@ def plot_experiment(df_tr, df_agr, meta, figsize=(12, 16)):
 
 
 def plot_cartography(df, meta, hue_metric="correct", show_hist=True):
-    dataframe = df
+    dataframe = cartography_average(df)
     # Subsample data to plot, so the plot is not too busy.
     #     dataframe.sample(
     #         n=25000 if dataframe.shape[0] > 25000 else len(dataframe)
@@ -345,6 +351,7 @@ def plot_cartography(df, meta, hue_metric="correct", show_hist=True):
 
 def plot_correlations(df_agr, df_crt, meta, figsize=(10, 18), print_flag=False):
     df_agr_avg = agreement_average(df_agr)
+    df_crt_avg = cartography_average(df_crt)
     corr_vals = []
     for (epoch, ip), row in df_agr_avg.iterrows():
         if print_flag:
@@ -358,7 +365,7 @@ def plot_correlations(df_agr, df_crt, meta, figsize=(10, 18), print_flag=False):
             "forgetfulness",
             "threshold_closeness",
         ]:
-            corr = pearsonr(row["correlation"], df_crt[key])
+            corr = pearsonr(row["correlation"], df_crt_avg[key])
             val = {
                 "interpreter": ip,
                 "epoch": epoch,

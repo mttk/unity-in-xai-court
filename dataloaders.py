@@ -1,3 +1,4 @@
+from cgi import test
 import os, sys
 from random import random
 from re import M
@@ -311,6 +312,7 @@ def load_imdb(
         vocab = None
         pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
         fields = [
+            Field("id"),
             Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
@@ -337,6 +339,7 @@ def load_imdb_sentences(
     test_path="data/IMDB_sentences/IMDB_nlptown_bert_test.csv",
     max_vocab_size=20000,
     max_len=100,
+    clip=True,
 ):
 
     post_hooks = []
@@ -346,6 +349,7 @@ def load_imdb_sentences(
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
         fields = [
+            Field("id"),
             Field(
                 "text",
                 numericalizer=vocab,
@@ -360,6 +364,7 @@ def load_imdb_sentences(
         vocab = None
         pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
         fields = [
+            Field("id"),
             Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
@@ -379,11 +384,11 @@ def load_imdb_sentences(
     test_dataset.shuffle_examples(random_state=42)
 
     train_dataset.finalize_fields()
-    print(fields[1].vocab.stoi)
+    test_dataset = test_dataset[:10_000] if clip else test_dataset
     return (
         train_dataset[:50_000],
         valid_dataset[:10_000],
-        test_dataset[:10_000],
+        test_dataset,
     ), vocab
 
 

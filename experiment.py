@@ -55,7 +55,7 @@ class Experiment:
         self.test_iter = make_iterable(
             self.test_set,
             self.device,
-            batch_size=self.batch_size,
+            batch_size=4,
             train=False,
         )
 

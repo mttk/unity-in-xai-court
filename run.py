@@ -49,6 +49,7 @@ if __name__ == "__main__":
         "epochs_per_train": args.epochs,
         "seeds": seeds,
         "interpreters": args.interpreters,
+        "tying": args.tying,
     }
     logging.info(meta_info)
 
@@ -86,6 +87,6 @@ if __name__ == "__main__":
         )
         result_list.append(results)
 
-    fname = f"{args.data}-{args.model_name}-{start_time}.pkl"
+    fname = f"{args.data}-{args.model_name}-tying={args.tying}-{start_time}.pkl"
     with open(f"results/{fname}", "wb") as f:
         pickle.dump((result_list, meta_info), f)
