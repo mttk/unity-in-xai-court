@@ -50,6 +50,7 @@ if __name__ == "__main__":
         "seeds": seeds,
         "interpreters": args.interpreters,
         "tying": args.tying,
+        "l2": args.l2,
     }
     logging.info(meta_info)
 
@@ -87,6 +88,6 @@ if __name__ == "__main__":
         )
         result_list.append(results)
 
-    fname = f"{args.data}-{args.model_name}-tying={args.tying}-{start_time}.pkl"
+    fname = f"{args.data}-{args.model_name}-tying={args.tying}-l2={args.l2}-{start_time}.pkl"
     with open(f"results/{fname}", "wb") as f:
         pickle.dump((result_list, meta_info), f)
