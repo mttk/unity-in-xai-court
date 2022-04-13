@@ -51,6 +51,7 @@ if __name__ == "__main__":
         "seeds": seeds,
         "interpreters": args.interpreters,
         "tying": args.tying,
+        "conicity": args.conicity,
         "l2": args.l2,
     }
     logging.info(meta_info)
