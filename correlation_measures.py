@@ -16,6 +16,8 @@ from overrides import overrides
 # from pyircor.tauap import tauap_b
 import scipy.stats as stats
 from scipy.stats import kendalltau, spearmanr, pearsonr, weightedtau
+from scipy.spatial.distance import jensenshannon
+
 
 def unordered_cartesian_product(
     x: List[Any], y: List[Any]
@@ -259,6 +261,18 @@ class PearsonR(CorrelationMeasure):
         return {self.id: CorrelationResult(correlation=pr, k=len(a))}
 
 
+class JSD(CorrelationMeasure):
+    def __init__(self):
+        super().__init__(identifier="jsd")
+
+    @enforce_same_shape
+    @overrides
+    def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
+        print(a, b)
+        jsd = jensenshannon(a, b)
+        return {self.id: CorrelationResult(correlation=jsd, k=len(a))}
+
+
 class KendallTauTopKVariable(CorrelationMeasure):
     def __init__(self, percent_top_k: List[float]):
         super().__init__(identifier="kendall_top_k_variable")
@@ -337,7 +351,7 @@ class KendallTauAPB(CorrelationMeasure):
         return {self.id: CorrelationResult(correlation=tau_ap_b, k=len(a))}
 
 
-CORRELATIONS = {"kendall-tau": KendallTau}
+CORRELATIONS = {"kendall-tau": KendallTau, "pearson": PearsonR, "jsd": JSD}
 
 
 def get_corr(key):

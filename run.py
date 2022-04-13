@@ -27,6 +27,7 @@ if __name__ == "__main__":
 
     # Construct correlation metrics
     correlations = [get_corr(key)() for key in args.correlation_measures]
+    print(correlations)
 
     # Initialize logging
     fmt = "%Y-%m-%d-%H-%M"

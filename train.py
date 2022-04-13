@@ -134,8 +134,8 @@ def make_parser():
     parser.add_argument(
         "--correlation_measures",
         nargs="+",
-        default=["kendall-tau"],
-        choices=["kendall-tau"],
+        default=["kendall-tau", "pearson", "jsd"],
+        choices=["kendall-tau", "pearson", "jsd"],
         help="Specify a list of correlation metrics.",
     )
 
@@ -252,11 +252,12 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
 
     N = len(importance_dictionary)
     K = len(correlation_measures)
-
-    scores = {}  # pairwise for each correlation
-    raw_correlations = {}
+    all_scores = {}
+    all_raw_correlations = {}
 
     for corr_idx, corr in enumerate(correlation_measures):
+        scores = {}  # pairwise for each correlation
+        raw_correlations = {}
         for i, k_i in enumerate(importance_dictionary):
             for j, k_j in enumerate(importance_dictionary):
                 corrs = []
@@ -272,9 +273,11 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
                     corrs.append(r[corr.id].correlation)
                 scores[(k_i, k_j)] = np.mean(corrs)
                 raw_correlations[(k_i, k_j)] = corrs
+        all_scores[corr] = scores
+        all_raw_correlations[corr] = raw_correlations
 
     pprint(scores)
-    return scores, raw_correlations
+    return all_scores, all_raw_correlations
 
 
 def evaluate(model, data, args, meta):
