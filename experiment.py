@@ -52,10 +52,12 @@ class Experiment:
         self.args = args
         self.meta = meta
 
+        test_batch_size = 4 if args.model_name == "DBERT" else 32
+
         self.test_iter = make_iterable(
             self.test_set,
             self.device,
-            batch_size=4,
+            batch_size=test_batch_size,
             train=False,
         )
 

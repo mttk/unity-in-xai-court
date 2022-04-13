@@ -273,10 +273,10 @@ def pairwise_correlation(importance_dictionary, correlation_measures):
                     corrs.append(r[corr.id].correlation)
                 scores[(k_i, k_j)] = np.mean(corrs)
                 raw_correlations[(k_i, k_j)] = corrs
-        all_scores[corr] = scores
-        all_raw_correlations[corr] = raw_correlations
+        all_scores[corr._id] = scores
+        all_raw_correlations[corr._id] = raw_correlations
 
-    pprint(scores)
+    pprint(all_scores)
     return all_scores, all_raw_correlations
 
 
