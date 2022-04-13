@@ -215,6 +215,17 @@ class Experiment:
                 reg = (h - e).norm(2, dim=-1).mean()
                 loss += self.args.tying * reg
 
+            # Perform conicity regularization if required
+            if self.args.conicity > 0. and self.args.model_name == "JWA":
+                h = return_dict['hidden'].transpose(0,1) # [BxTxH]
+                # Compute mean hidden across T
+                h_mu = h.mean(1, keepdim=True) # [Bx1xH]
+                # Compute ATM
+                cosine = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)(h, h_mu) # [BxT]
+                conicity = cosine.mean() # Conicity = average ATM, dim=[1]
+
+                loss += self.args.conicity * conicity
+
             total_loss += float(loss)
 
             optimizer.zero_grad()

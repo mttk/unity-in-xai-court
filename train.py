@@ -66,6 +66,10 @@ def make_parser():
     parser.add_argument(
         "--tying", type=float, default=0.0, help="Weight tying lambda (if applicable)"
     )
+    # Conicity regularization arguments
+        parser.add_argument(
+        "--conicity", type=float, default=0.0, help="Conicity regularization lambda (if applicable)"
+    )
     # JWA arguments
     parser.add_argument(
         "--rnn_type",
@@ -365,6 +369,17 @@ def train(model, data, optimizer, criterion, args, meta):
             # print(h.shape, e.shape)
             reg = (h - e).norm(2, dim=-1).mean()
             loss += args.tying * reg
+
+        if args.conicity > 0.:
+            h = return_dict['hidden'].transpose(0,1) # [BxTxH]
+            # Compute mean hidden across T
+            h_mu = h.mean(1, keepdim=True) # [Bx1xH]
+            # Compute ATM
+            cosine = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)(h, h_mu) # [BxT]
+            # print(cosine.shape)
+            conicity = cosine.mean() # Conicity = average ATM, dim=[1]
+            # print(conicity)
+            loss += args.conicity * conicity
 
         total_loss += float(loss)
         optimizer.zero_grad()
