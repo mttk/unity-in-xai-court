@@ -78,7 +78,6 @@ def logits_to_probs(logits):
     return y_pred
 
 
-
 def set_seed_everywhere(seed):
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -90,3 +89,15 @@ def set_seed_everywhere(seed):
 
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+def logits_to_probs(logits):
+    num_targets = logits.shape[-1]
+    if num_targets == 1:
+        # Binary classification
+        y_pred = torch.sigmoid(logits)
+        y_pred = torch.cat([1.0 - y_pred, y_pred], dim=1)
+    else:
+        # Multiclass classification
+        y_pred = F.softmax(logits, dim=1)
+    return y_pred

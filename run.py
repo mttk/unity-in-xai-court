@@ -50,6 +50,7 @@ if __name__ == "__main__":
         "epochs_per_train": args.epochs,
         "seeds": seeds,
         "interpreters": args.interpreters,
+        "correlations": args.correlation_measures,
         "tying": args.tying,
         "conicity": args.conicity,
         "l2": args.l2,
@@ -90,6 +91,6 @@ if __name__ == "__main__":
         )
         result_list.append(results)
 
-    fname = f"{args.data}-{args.model_name}-tying={args.tying}-l2={args.l2}-{start_time}.pkl"
-    with open(f"results/{fname}", "wb") as f:
+    fname = f"{args.data}-{args.model_name}-conicity={args.conicity}-tying={args.tying}-l2={args.l2}-{start_time}.pkl"
+    with open(f"{args.save_dir}/{fname}", "wb") as f:
         pickle.dump((result_list, meta_info), f)

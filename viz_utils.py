@@ -9,6 +9,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+from collections import defaultdict
+
 from scipy.stats import pearsonr
 
 
@@ -47,7 +49,7 @@ def results_to_df(experiments, meta):
 
 def extract_data(exp_set, interpret_pairs):
     dfs_tr = []
-    dfs_agr = []
+    dfs_agr = defaultdict(list)
     dfs_crt_train = []
     dfs_crt_test = []
     dfs_attr = []
@@ -56,35 +58,45 @@ def extract_data(exp_set, interpret_pairs):
         train_vals = [tr["loss"] for tr in train]
         test = experiment["eval"]
         test_vals = [te["accuracy"] for te in test]
+        # f1_vals = [te["f1"] for te in test]
         df_tr = pd.DataFrame(
             {
                 "epoch": range(len(train_vals)),
                 "train_loss": train_vals,
                 "test_accuracy": test_vals,
+                # "test_f1": f1_vals,
             }
         )
         df_tr["experiment"] = exp_index
         df_tr.set_index(["experiment", "epoch"], inplace=True)
 
-        agreement_vals = []
-        interpret_vals = []
-        correlation_vals = []
-        for ip in interpret_pairs:
-            for a, corr in zip(experiment["agreement"], experiment["correlation"]):
-                interpret_vals.append(ip)
-                agreement_vals.append(a[ip])
-                correlation_vals.append(np.array(corr[ip]))
+        agreement_vals = defaultdict(list)
+        interpret_vals = defaultdict(list)
+        correlation_vals = defaultdict(list)
 
-        df_agr = pd.DataFrame(
-            {
-                "epoch": list(range(len(train_vals))) * len(interpret_pairs),
-                "agreement": agreement_vals,
-                "correlation": correlation_vals,
-                "interpreter": interpret_vals,
-            }
-        )
-        df_agr["experiment"] = exp_index
-        df_agr.set_index(["experiment", "epoch", "interpreter"], inplace=True)
+        for ip in interpret_pairs:
+            for a, corr in zip(
+                experiment["agreement"],
+                experiment["correlation"],
+            ):
+                for corr_meas in a.keys():
+                    interpret_vals[corr_meas].append(ip)
+                    agreement_vals[corr_meas].append(a[corr_meas][ip])
+                    correlation_vals[corr_meas].append(np.array(corr[corr_meas][ip]))
+
+        for corr_meas in a.keys():
+            df_agr = pd.DataFrame(
+                {
+                    "epoch": list(range(len(train_vals))) * len(interpret_pairs),
+                    "agreement": agreement_vals[corr_meas],
+                    "correlation": correlation_vals[corr_meas],
+                    "interpreter": interpret_vals[corr_meas],
+                }
+            )
+            df_agr["experiment"] = exp_index
+            df_agr.set_index(["experiment", "epoch", "interpreter"], inplace=True)
+            df_agr["measure"] = corr_meas
+            dfs_agr[corr_meas].append(df_agr)
 
         df_crt_train = extract_cartography(
             experiment["cartography"]["train"], exp_index
@@ -94,13 +106,12 @@ def extract_data(exp_set, interpret_pairs):
         df_attr = extract_attribution(experiment["attributions"], exp_index)
 
         dfs_tr.append(df_tr)
-        dfs_agr.append(df_agr)
         dfs_crt_train.append(df_crt_train)
         dfs_crt_test.append(df_crt_test)
         dfs_attr.append(df_attr)
 
     new_df_tr = pd.concat(dfs_tr)
-    new_df_agr = pd.concat(dfs_agr)
+    new_df_agr = {k: pd.concat(v) for k, v in dfs_agr.items()}
     new_df_crt_train = pd.concat(dfs_crt_train)
     new_df_crt_test = pd.concat(dfs_crt_test)
     new_df_attr = pd.concat(dfs_attr)
@@ -180,26 +191,28 @@ def attribution_average(df):
 #     return new_df
 
 
-def plot_experiment(df_tr, df_agr, meta, figsize=(12, 16)):
-    _, axs = plt.subplots(3, figsize=figsize, sharex=True)
+def plot_experiment(df_tr, df_agr, meta, figsize=(12, 30)):
+    num_meas = len(df_agr)
+    _, axs = plt.subplots(2 + num_meas, figsize=figsize, sharex=True)
     axs[0].set_title(f"{meta['dataset']} - {meta['model']}")
     sns.lineplot(ax=axs[0], data=df_tr, x="epoch", y="train_loss", color="r", ci="sd")
     sns.lineplot(
         ax=axs[1], data=df_tr, x="epoch", y="test_accuracy", color="g", ci="sd"
     )
-    g = sns.lineplot(
-        ax=axs[2],
-        data=df_agr,
-        x="epoch",
-        y="agreement",
-        hue="interpreter",
-        style="interpreter",
-        ci="sd",
-        markers=True,
-        dashes=True,
-    )
-    g.legend(loc="center right", bbox_to_anchor=(1.3, 0.5), ncol=1)
-    g.set(xticks=range(meta["epochs_per_train"]))
+    for i, (k, v) in enumerate(df_agr.items()):
+        g = sns.lineplot(
+            ax=axs[2 + i],
+            data=v,
+            x="epoch",
+            y="agreement",
+            hue="interpreter",
+            style="interpreter",
+            ci="sd",
+            markers=True,
+            dashes=True,
+        )
+        g.legend(loc="center right", bbox_to_anchor=(1.3, 0.5), ncol=1, title=k.upper())
+        g.set(xticks=range(meta["epochs_per_train"]))
     plt.show()
 
 
@@ -350,66 +363,75 @@ def plot_cartography(df, meta, hue_metric="correct", show_hist=True):
 
 
 def plot_correlations(df_agr, df_crt, meta, figsize=(10, 18), print_flag=False):
-    df_agr_avg = agreement_average(df_agr)
     df_crt_avg = cartography_average(df_crt)
-    corr_vals = []
-    for (epoch, ip), row in df_agr_avg.iterrows():
-        if print_flag:
-            print(f"Epoch {epoch}")
-            print("=" * 100)
-            print(f"\tInterpreter pair: {ip}")
-        for key in [
-            "correctness",
-            "confidence",
-            "variability",
-            "forgetfulness",
-            "threshold_closeness",
-        ]:
-            corr = pearsonr(row["correlation"], df_crt_avg[key])
+    dfs = {}
+    for corr_meas, df_agr_i in df_agr.items():
+        df_agr_avg = agreement_average(df_agr_i)
+
+        corr_vals = []
+        for (epoch, ip), row in df_agr_avg.iterrows():
+            if print_flag:
+                print(f"Epoch {epoch}")
+                print("=" * 100)
+                print(f"\tInterpreter pair: {ip}")
+            for key in [
+                "correctness",
+                "confidence",
+                "variability",
+                "forgetfulness",
+                "threshold_closeness",
+            ]:
+                corr = pearsonr(row["correlation"], df_crt_avg[key])
+                val = {
+                    "interpreter": ip,
+                    "epoch": epoch,
+                    "correlation": corr[0],
+                    "p-value": corr[1],
+                    "attribute": key,
+                }
+                corr_vals.append(val)
+                if print_flag:
+                    print(f"\t\t agreement vs. {key}: {corr}")
+
+            corr = pearsonr(row["correlation"], meta["test_lengths"])
             val = {
                 "interpreter": ip,
                 "epoch": epoch,
                 "correlation": corr[0],
                 "p-value": corr[1],
-                "attribute": key,
+                "attribute": "length",
             }
             corr_vals.append(val)
             if print_flag:
-                print(f"\t\t agreement vs. {key}: {corr}")
+                print(f"\t\t agreement vs. length: {corr}")
+                print()
 
-        corr = pearsonr(row["correlation"], meta["test_lengths"])
-        val = {
-            "interpreter": ip,
-            "epoch": epoch,
-            "correlation": corr[0],
-            "p-value": corr[1],
-            "attribute": "length",
-        }
-        corr_vals.append(val)
-        if print_flag:
-            print(f"\t\t agreement vs. length: {corr}")
-            print()
+        df = pd.DataFrame(corr_vals)
+        dfs[corr_meas] = df
 
-    df = pd.DataFrame(corr_vals)
+        ips = meta["interpret_pairs"]
+        _, axs = plt.subplots(len(ips), figsize=figsize, sharex=True)
 
-    ips = meta["interpret_pairs"]
-    _, axs = plt.subplots(len(ips), figsize=figsize, sharex=True)
+        for i, ip in enumerate(ips):
+            df_filt = df[df.interpreter == ip]
+            axs[i].set_title(ip)
+            g = sns.lineplot(
+                ax=axs[i],
+                data=df_filt,
+                x="epoch",
+                y="correlation",
+                hue="attribute",
+                style="attribute",
+                markers=True,
+                dashes=True,
+            )
+            g.axhline(0, color="gray")
+            g.legend(
+                loc="center right",
+                bbox_to_anchor=(1.3, 0.5),
+                ncol=1,
+                title=corr_meas.upper(),
+            )
+            g.set(xticks=range(meta["epochs_per_train"]))
 
-    for i, ip in enumerate(ips):
-        df_filt = df[df.interpreter == ip]
-        axs[i].set_title(ip)
-        g = sns.lineplot(
-            ax=axs[i],
-            data=df_filt,
-            x="epoch",
-            y="correlation",
-            hue="attribute",
-            style="attribute",
-            markers=True,
-            dashes=True,
-        )
-        g.axhline(0, color="gray")
-        g.legend(loc="center right", bbox_to_anchor=(1.3, 0.5), ncol=1)
-        g.set(xticks=range(meta["epochs_per_train"]))
-
-    return df
+    return dfs

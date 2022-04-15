@@ -67,8 +67,11 @@ def make_parser():
         "--tying", type=float, default=0.0, help="Weight tying lambda (if applicable)"
     )
     # Conicity regularization arguments
-        parser.add_argument(
-        "--conicity", type=float, default=0.0, help="Conicity regularization lambda (if applicable)"
+    parser.add_argument(
+        "--conicity",
+        type=float,
+        default=0.0,
+        help="Conicity regularization lambda (if applicable)",
     )
     # JWA arguments
     parser.add_argument(
@@ -131,7 +134,7 @@ def make_parser():
     parser.add_argument(
         "--interpreters",
         nargs="+",
-        default=["deeplift", "grad-shap"],
+        default=["deeplift", "grad-shap", "deeplift-shap", "int-grad"],
         choices=["deeplift", "grad-shap", "deeplift-shap", "int-grad", "lime"],
         help="Specify a list of interpreters.",
     )
@@ -157,6 +160,14 @@ def make_parser():
     # Repeat experiments
     parser.add_argument(
         "--repeat", type=int, default=5, help="number of times to repeat training"
+    )
+
+    # Save directory
+    parser.add_argument(
+        "--save-dir",
+        type=str,
+        default="results",
+        help="Directory for storing results.",
     )
 
     # Gpu based arguments
@@ -191,10 +202,7 @@ def make_parser():
 
     # Active learning arguments
     parser.add_argument(
-        "--warm-start-size", type=int, default=50, help="Initial AL batch size."
-    )
-    parser.add_argument(
-        "--max-train-size", type=int, default=3000, help="Maximum train set size."
+        "--warm-start-size", type=int, default=-1, help="Initial AL batch size."
     )
 
     return parser.parse_args()
@@ -370,14 +378,14 @@ def train(model, data, optimizer, criterion, args, meta):
             reg = (h - e).norm(2, dim=-1).mean()
             loss += args.tying * reg
 
-        if args.conicity > 0.:
-            h = return_dict['hidden'].transpose(0,1) # [BxTxH]
+        if args.conicity > 0.0:
+            h = return_dict["hidden"].transpose(0, 1)  # [BxTxH]
             # Compute mean hidden across T
-            h_mu = h.mean(1, keepdim=True) # [Bx1xH]
+            h_mu = h.mean(1, keepdim=True)  # [Bx1xH]
             # Compute ATM
-            cosine = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)(h, h_mu) # [BxT]
+            cosine = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)(h, h_mu)  # [BxT]
             # print(cosine.shape)
-            conicity = cosine.mean() # Conicity = average ATM, dim=[1]
+            conicity = cosine.mean()  # Conicity = average ATM, dim=[1]
             # print(conicity)
             loss += args.conicity * conicity
 

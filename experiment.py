@@ -1,11 +1,11 @@
-import numpy as np
-import logging
-import torch
 import time
+import torch
+import logging
+import numpy as np
+from sklearn.metrics import f1_score
 
 from train import *
 from dataloaders import *
-
 from util import logits_to_probs
 
 
@@ -76,7 +76,6 @@ class Experiment:
         else:
             # Initialize label mask.
             lab_mask = np.full(len(self.train_set), False)
-            # TODO: stratified warm start
             random_inds = np.random.choice(
                 len(self.train_set), warm_start_size, replace=False
             )
@@ -218,13 +217,13 @@ class Experiment:
                 loss += self.args.tying * reg
 
             # Perform conicity regularization if required
-            if self.args.conicity > 0. and self.args.model_name == "JWA":
-                h = return_dict['hidden'].transpose(0,1) # [BxTxH]
+            if self.args.conicity > 0.0 and self.args.model_name == "JWA":
+                h = return_dict["hidden"].transpose(0, 1)  # [BxTxH]
                 # Compute mean hidden across T
-                h_mu = h.mean(1, keepdim=True) # [Bx1xH]
+                h_mu = h.mean(1, keepdim=True)  # [Bx1xH]
                 # Compute ATM
-                cosine = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)(h, h_mu) # [BxT]
-                conicity = cosine.mean() # Conicity = average ATM, dim=[1]
+                cosine = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)(h, h_mu)  # [BxT]
+                conicity = cosine.mean()  # Conicity = average ATM, dim=[1]
 
                 loss += self.args.conicity * conicity
 
@@ -257,6 +256,8 @@ class Experiment:
             (self.meta.num_labels, self.meta.num_labels), dtype=int
         )
 
+        logit_list = []
+        y_true_list = []
         with torch.inference_mode():
             for batch_num, batch in enumerate(data):
                 t = time.time()
@@ -265,7 +266,10 @@ class Experiment:
                 (x, lengths), y = batch.text, batch.label
 
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
+                y_true_list.append(y.cpu())
+
                 logits, _ = model(x, lengths)
+                logit_list.append(logits.cpu())
 
                 # Bookkeeping and cast label to float
                 accuracy, confusion_matrix = Experiment.update_stats(
@@ -280,6 +284,13 @@ class Experiment:
                     flush=True,
                 )
 
+        logits = torch.cat(logit_list)
+        y_true = torch.cat(y_true_list)
+        probs = logits_to_probs(logits)
+        y_pred = torch.argmax(probs, dim=1)
+        f1_average = "binary" if torch.unique(y_true).numel() == 2 else "micro"
+        f1 = f1_score(y_true=y_true, y_pred=y_pred, average=f1_average)
+
         logging.info(
             "[Accuracy]: {}/{} : {:.3f}%".format(
                 accuracy,
@@ -287,8 +298,10 @@ class Experiment:
                 accuracy / len(self.test_set) * 100,
             )
         )
+        logging.info(f"[F1]: {f1:.3f}")
         logging.info(confusion_matrix)
-        result_dict = {"accuracy": accuracy / len(self.test_set)}
+
+        result_dict = {"accuracy": accuracy / len(self.test_set), "f1": f1}
         return result_dict
 
     @staticmethod

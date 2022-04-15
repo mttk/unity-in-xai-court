@@ -268,7 +268,9 @@ class JSD(CorrelationMeasure):
     @enforce_same_shape
     @overrides
     def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
-        jsd = jensenshannon(a, b)
+        jsd = jensenshannon(a / np.linalg.norm(a), b / np.linalg.norm(b))
+        if np.isnan(jsd):
+            jsd = 0.0
         return {self.id: CorrelationResult(correlation=jsd, k=len(a))}
 
 
