@@ -218,7 +218,7 @@ class Experiment:
 
             # Perform conicity regularization if required
             if self.args.conicity > 0.0 and self.args.model_name == "JWA":
-                h = return_dict["hidden"].transpose(0, 1)  # [BxTxH]
+                h = return_dict["hiddens"].transpose(0, 1)  # [BxTxH]
                 # Compute mean hidden across T
                 h_mu = h.mean(1, keepdim=True)  # [Bx1xH]
                 # Compute ATM
