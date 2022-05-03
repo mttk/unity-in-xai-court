@@ -460,24 +460,26 @@ def test_load_tse_rationale():
     print(vocab.get_padding_index())
 
 
-def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
+def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
-        fields = {
-            "text": Field(
+        fields = [
+            Field("id"),
+            Field(
                 "text",
                 numericalizer=vocab,
                 include_lengths=True,
                 posttokenize_hooks=[MaxLenHook(max_seq_len)],
             ),
-            "label": LabelField("label"),
-        }
+            LabelField("label"),
+        ]
     else:
         # Use BERT subword tokenization
         vocab = None
         pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
-        fields = {
-            "text": Field(
+        fields = [
+            Field("id"),
+            Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
                 padding_token=pad_index,
@@ -485,11 +487,30 @@ def load_sst(tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
                 include_lengths=True,
                 posttokenize_hooks=[MaxLenHook(max_seq_len)],
             ),
-            "label": LabelField("label"),
-        }
-    train, val, test = SST.get_dataset_splits(fields=fields)
+            LabelField("label"),
+        ]
+    train = TabularDataset(
+        os.path.join(data_dir, "train.csv"), format="csv", fields=fields
+    )
+    val = TabularDataset(os.path.join(data_dir, "dev.csv"), format="csv", fields=fields)
+    test = TabularDataset(
+        os.path.join(data_dir, "test.csv"), format="csv", fields=fields
+    )
     train.finalize_fields()
     return (train, val, test), vocab
+
+
+def load_sst(
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+):
+    return load_dataset(
+        "data/SST",
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
 
 
 def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
@@ -512,7 +533,21 @@ def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
     print(vocab.get_padding_index())
 
 
-def load_trec(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
+def load_trec(
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+):
+
+    return load_dataset(
+        "data/TREC",
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
+
+
+def load_trec_hf(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
     vocab = Vocab(max_size=max_vocab_size)
     fields = [
         Field(
@@ -520,6 +555,7 @@ def load_trec(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
             numericalizer=vocab,
             include_lengths=True,
             posttokenize_hooks=[MaxLenHook(max_seq_len)],
+            keep_raw=True,
         ),
         LabelField("label"),
     ]

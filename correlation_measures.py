@@ -257,7 +257,10 @@ class PearsonR(CorrelationMeasure):
     @enforce_same_shape
     @overrides
     def correlation(self, a: np.ndarray, b: np.ndarray, **kwargs) -> CorrelationMap:
-        pr, _ = pearsonr(a, b)
+        if a.size == 1:
+            pr = 1.0
+        else:
+            pr, _ = pearsonr(a, b)
         return {self.id: CorrelationResult(correlation=pr, k=len(a))}
 
 

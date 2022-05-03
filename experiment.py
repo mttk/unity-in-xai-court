@@ -52,7 +52,7 @@ class Experiment:
         self.args = args
         self.meta = meta
 
-        test_batch_size = 4 if args.model_name == "DBERT" else 32
+        test_batch_size = 2 if args.model_name == "DBERT" else 32
 
         self.test_iter = make_iterable(
             self.test_set,
@@ -266,7 +266,7 @@ class Experiment:
                 (x, lengths), y = batch.text, batch.label
 
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
-                y_true_list.append(y.cpu())
+                y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
 
                 logits, _ = model(x, lengths)
                 logit_list.append(logits.cpu())
