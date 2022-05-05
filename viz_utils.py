@@ -1,4 +1,5 @@
 from argparse import ArgumentError
+from calendar import c
 import os
 import itertools
 
@@ -17,20 +18,22 @@ from scipy.stats import pearsonr
 def load_results(base_dir="results/", dataset="IMDB", model="JWA"):
     file_name = f"{dataset}-{model}"
     found = False
+    experiments = []
 
     for filename in os.listdir(base_dir):
         if filename.startswith(file_name) and filename.endswith(".pkl"):
             with open(os.path.join(base_dir, filename), "rb") as f:
                 results, meta = pickle.load(f)
+                meta["interpret_pairs"] = list(
+                    itertools.combinations(meta["interpreters"], 2)
+                )
+                experiments.append((results, meta))
                 found = True
-                break
 
     if not found:
         raise ArgumentError(f"Result file was not found.")
 
-    meta["interpret_pairs"] = list(itertools.combinations(meta["interpreters"], 2))
-
-    return results, meta
+    return experiments
 
 
 def results_to_df(experiments, meta):
@@ -85,11 +88,17 @@ def extract_data(exp_set, interpret_pairs):
                     correlation_vals[corr_meas].append(np.array(corr[corr_meas][ip]))
 
         for corr_meas in a.keys():
+            if corr_meas == "jsd":
+                corr_vals = [1.0 - arr for arr in correlation_vals[corr_meas]]
+                agr_vals = [1.0 - val for val in agreement_vals[corr_meas]]
+            else:
+                corr_vals = correlation_vals[corr_meas]
+                agr_vals = agreement_vals[corr_meas]
             df_agr = pd.DataFrame(
                 {
                     "epoch": list(range(len(train_vals))) * len(interpret_pairs),
-                    "agreement": agreement_vals[corr_meas],
-                    "correlation": correlation_vals[corr_meas],
+                    "agreement": agr_vals,
+                    "correlation": corr_vals,
                     "interpreter": interpret_vals[corr_meas],
                 }
             )

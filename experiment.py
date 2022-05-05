@@ -52,7 +52,7 @@ class Experiment:
         self.args = args
         self.meta = meta
 
-        test_batch_size = 2 if args.model_name == "DBERT" else 32
+        test_batch_size = 16 if args.model_name == "DBERT" else 32
 
         self.test_iter = make_iterable(
             self.test_set,
