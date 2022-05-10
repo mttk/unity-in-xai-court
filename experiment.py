@@ -208,7 +208,7 @@ class Experiment:
             loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
 
             # Perform weight tying if required
-            if self.args.tying > 0.0 and self.args.model_name == "JWA":
+            if self.args.tying > 0.0: #  and self.args.model_name == "JWA"
                 e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
                 h = return_dict["hiddens"]  # TxBxH
 
@@ -217,7 +217,7 @@ class Experiment:
                 loss += self.args.tying * reg
 
             # Perform conicity regularization if required
-            if self.args.conicity > 0.0 and self.args.model_name == "JWA":
+            if self.args.conicity > 0.0: #  and self.args.model_name == "JWA"
                 h = return_dict["hiddens"].transpose(0, 1)  # [BxTxH]
                 # Compute mean hidden across T
                 h_mu = h.mean(1, keepdim=True)  # [Bx1xH]
