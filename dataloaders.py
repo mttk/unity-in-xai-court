@@ -281,6 +281,10 @@ class MaxLenHook:
         return raw, tokenized[: self.max_len]
 
 
+def lowercase_hook(raw, tokenized):
+    return raw, [tok.lower() for tok in tokenized]
+
+
 def load_imdb(
     tokenizer=None,
     train_path="data/IMDB/train.csv",
@@ -290,7 +294,7 @@ def load_imdb(
     max_len=200,
 ):
 
-    post_hooks = []
+    post_hooks = [lowercase_hook]
     if max_len:
         post_hooks.append(MaxLenHook(max_len))
 
@@ -469,7 +473,7 @@ def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=20
                 "text",
                 numericalizer=vocab,
                 include_lengths=True,
-                posttokenize_hooks=[MaxLenHook(max_seq_len)],
+                posttokenize_hooks=[MaxLenHook(max_seq_len), lowercase_hook],
             ),
             LabelField("label"),
         ]
@@ -485,7 +489,7 @@ def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=20
                 padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
-                posttokenize_hooks=[MaxLenHook(max_seq_len)],
+                posttokenize_hooks=[MaxLenHook(max_seq_len), lowercase_hook],
             ),
             LabelField("label"),
         ]

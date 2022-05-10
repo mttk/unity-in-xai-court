@@ -209,6 +209,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         hidden_state = encoder_output[0]  # (bs, seq_len, dim)
         pooled_output = hidden_state[:, 0]  # (bs, dim) # CLS Token
+        outpud_dict["hidden"] = hidden_state # B, T, D
 
         # Single hidden layer decoder
         pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
