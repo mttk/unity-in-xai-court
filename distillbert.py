@@ -125,7 +125,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         # Positional embeddings + token embeddings
         # self.embedding_dim = config.embedding_dim
-        self.embeddings = Embeddings.from_params(meta.embeddings)
+        self.embeddings = meta.embeddings
 
         # DistillBert
         self.encoder = meta.encoder
@@ -294,11 +294,11 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # print(tokens.max(), tokens.min())
         # print(tokens.shape)
         # print(attention_mask.sum())
-        print(type(self.embeddings), self.embeddings)
-        print(self.embeddings(tokens))
-        embedding_output, word_embeddings = self.embeddings(tokens) # (bs, seq_len, dim)
+        # print(type(self.embeddings), self.embeddings)
+        # print(self.embeddings(tokens))
+        embedding_output = self.embeddings(tokens) # (bs, seq_len, dim)
 
-        output_dict["embeddings"] = word_embeddings
+        output_dict["embeddings"] = self.embeddings.word_embeddings(tokens)
 
         prediction = self.forward_inner(
             embedded_tokens=embedding_output,
@@ -363,7 +363,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
     def instances_to_captum_inputs(self, inputs, lengths, labels=None):
         with torch.no_grad():
-            embedded_tokens, _ = self.embeddings(inputs)
+            embedded_tokens = self.embeddings(inputs)
             output_dict = {}
             output_dict["embedding"] = embedded_tokens
             _, T = inputs.shape # get max T
