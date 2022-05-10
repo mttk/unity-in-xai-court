@@ -444,3 +444,152 @@ def plot_correlations(df_agr, df_crt, meta, figsize=(10, 18), print_flag=False):
             g.set(xticks=range(meta["epochs_per_train"]))
 
     return dfs
+
+
+def get_final_accuracy(exp):
+    results = exp[0][0]
+    return results["eval"][-1]["accuracy"]
+
+
+def pick_best(exps):
+    best = None
+    for exp in exps:
+        if not best or get_final_accuracy(exp) > get_final_accuracy(best):
+            best = exp
+    return best
+
+
+def get_best_models(experiments):
+    conicity = [ex for ex in experiments if ex[1]["conicity"] > 0]
+    tying = [ex for ex in experiments if ex[1]["tying"] > 0]
+    l2 = [ex for ex in experiments if ex[1]["l2"] > 0]
+    nonreg = [
+        ex
+        for ex in experiments
+        if ex[1]["conicity"] == 0 and ex[1]["tying"] == 0 and ex[1]["l2"] == 0
+    ]
+
+    con_pick = pick_best(conicity)
+    tying_pick = pick_best(tying)
+    l2_pick = pick_best(l2)
+    nonreg_pick = pick_best(nonreg)
+
+    return con_pick, tying_pick, l2_pick, nonreg_pick
+
+
+def plot_agreement_matrix(
+    experiments, models, num_meas=3, figsize=(16, 16), set_title=True, set_legend=True
+):
+    fig, axs = plt.subplots(len(experiments), num_meas, figsize=figsize, sharey=True)
+    fig.subplots_adjust(hspace=0.4)
+    for j, ((results, meta), model) in enumerate(zip(experiments, models)):
+        df_tr, df_agr, df_crt_train, df_crt_test, df_attr = results_to_df(results, meta)
+        num_meas = len(df_agr)
+        lines = []
+
+        for i, (k, v) in enumerate(df_agr.items()):
+            g = sns.lineplot(
+                ax=axs[j][i],
+                data=v,
+                x="epoch",
+                y="agreement",
+                hue="interpreter",
+                style="interpreter",
+                ci="sd",
+                markers=True,
+                dashes=True,
+            )
+            if set_title:
+                g.set_title(f"{model} -- {k.upper()}")
+            handles, labels = axs[j][i].get_legend_handles_labels()
+            axs[j][i].get_legend().remove()
+            g.set(xticks=range(meta["epochs_per_train"]))
+
+        if set_legend and j == len(experiments) - 1:
+            handles, labels = axs[j][i].get_legend_handles_labels()
+            g.legend(handles, labels)
+            g.legend(loc="center", bbox_to_anchor=(0, -0.5), ncol=1)
+    plt.show()
+
+
+def plot_attribute_matrix(
+    experiments,
+    figsize=(20, 20),
+    attributes=[
+        "correctness",
+        "confidence",
+        "variability",
+        "forgetfulness",
+        "threshold_closeness",
+    ],
+    print_flag=False,
+):
+    fig, axs = plt.subplots(
+        len(experiments), len(attributes) + 1, figsize=figsize, sharex=True
+    )
+    fig.subplots_adjust(wspace=0.25)
+    for j, (results, meta) in enumerate(experiments):
+        df_tr, df_agr, df_crt_train, df_crt_test, df_attr = results_to_df(results, meta)
+        df_crt_avg = cartography_average(df_crt_test)
+        dfs = []
+        for corr_meas, df_agr_i in df_agr.items():
+            df_agr_avg = agreement_average(df_agr_i)
+
+            corr_vals = []
+            for (epoch, ip), row in df_agr_avg.iterrows():
+                if epoch != meta["epochs_per_train"] - 1:
+                    continue
+                if print_flag:
+                    print(f"Epoch {epoch}")
+                    print("=" * 100)
+                    print(f"\tInterpreter pair: {ip}")
+                for key in attributes:
+                    corr = pearsonr(row["correlation"], df_crt_avg[key])
+                    val = {
+                        "interpreter": ip,
+                        "epoch": epoch,
+                        "correlation": corr[0],
+                        "p-value": corr[1],
+                        "attribute": key,
+                    }
+                    corr_vals.append(val)
+                    if print_flag:
+                        print(f"\t\t agreement vs. {key}: {corr}")
+
+                corr = pearsonr(row["correlation"], meta["test_lengths"])
+                val = {
+                    "interpreter": ip,
+                    "epoch": epoch,
+                    "correlation": corr[0],
+                    "p-value": corr[1],
+                    "attribute": "length",
+                }
+                corr_vals.append(val)
+                if print_flag:
+                    print(f"\t\t agreement vs. length: {corr}")
+                    print()
+
+            df = pd.DataFrame(corr_vals)
+            df["measure"] = corr_meas
+            dfs.append(df)
+
+        major_df = pd.concat(dfs)
+        ips = meta["interpret_pairs"]
+
+        for i, attribute in enumerate(attributes + ["length"]):
+            df_filt = major_df[major_df.attribute == attribute]
+            axs[j][i].set_title(attribute)
+            g = sns.barplot(
+                ax=axs[j][i],
+                data=df_filt,
+                x="interpreter",
+                y="correlation",
+                hue="measure",
+                ci="sd",
+                palette="dark",
+                alpha=0.75,
+            )
+            g.set_title(attribute)
+            g.set_xticklabels(
+                rotation=30, labels=ips, ha="right", rotation_mode="anchor"
+            )

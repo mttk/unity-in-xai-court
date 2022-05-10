@@ -52,7 +52,7 @@ class Experiment:
         self.args = args
         self.meta = meta
 
-        test_batch_size = 16 if args.model_name == "DBERT" else 32
+        test_batch_size = 4 if args.model_name == "DBERT" else 32
 
         self.test_iter = make_iterable(
             self.test_set,
@@ -246,6 +246,9 @@ class Experiment:
         result_dict = {"loss": loss}
         logit_tensor = torch.cat(logit_list)
         y_true = torch.cat(y_true_list)
+
+        logging.info(f"[Train accuracy]: {accuracy/len(self.train_set)*100:.3f}%")
+
         return result_dict, logit_tensor, y_true
 
     def _evaluate_model(self, model):
@@ -292,7 +295,7 @@ class Experiment:
         f1 = f1_score(y_true=y_true, y_pred=y_pred, average=f1_average)
 
         logging.info(
-            "[Accuracy]: {}/{} : {:.3f}%".format(
+            "[Test accuracy]: {}/{} : {:.3f}%".format(
                 accuracy,
                 len(self.test_set),
                 accuracy / len(self.test_set) * 100,
