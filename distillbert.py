@@ -294,6 +294,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # print(tokens.max(), tokens.min())
         # print(tokens.shape)
         # print(attention_mask.sum())
+        print(type(self.embeddings), self.embeddings)
         embedding_output, word_embeddings = self.embeddings(tokens) # (bs, seq_len, dim)
 
         output_dict["embeddings"] = word_embeddings
