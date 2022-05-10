@@ -212,7 +212,7 @@ class Experiment:
                 e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
                 h = return_dict["hiddens"]  # TxBxH
 
-                print(h.shape, e.shape)
+                # print(h.shape, e.shape)
                 reg = (h - e).norm(2, dim=-1).mean()
                 loss += self.args.tying * reg
 
