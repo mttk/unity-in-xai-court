@@ -92,7 +92,7 @@ class Embeddings(nn.Module, FromParams):
         embeddings = word_embeddings + position_embeddings  # (bs, max_seq_length, dim)
         embeddings = self.LayerNorm(embeddings)  # (bs, max_seq_length, dim)
         embeddings = self.dropout(embeddings)  # (bs, max_seq_length, dim)
-        return embeddings
+        return embeddings, word_embeddings
 
 
 class TransformerBlock(nn.Module):

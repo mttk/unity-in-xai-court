@@ -209,7 +209,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         hidden_state = encoder_output[0]  # (bs, seq_len, dim)
         pooled_output = hidden_state[:, 0]  # (bs, dim) # CLS Token
-        outpud_dict["hidden"] = hidden_state # B, T, D
+        outpud_dict["hiddens"] = hidden_state # B, T, D
 
         # Single hidden layer decoder
         pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
@@ -294,7 +294,9 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         # print(tokens.max(), tokens.min())
         # print(tokens.shape)
         # print(attention_mask.sum())
-        embedding_output = self.embeddings(tokens) # (bs, seq_len, dim)
+        embedding_output, word_embeddings = self.embeddings(tokens) # (bs, seq_len, dim)
+
+        output_dict["embeddings"] = word_embeddings
 
         prediction = self.forward_inner(
             embedded_tokens=embedding_output,
@@ -359,7 +361,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
     def instances_to_captum_inputs(self, inputs, lengths, labels=None):
         with torch.no_grad():
-            embedded_tokens = self.embeddings(inputs)
+            embedded_tokens, _ = self.embeddings(inputs)
             output_dict = {}
             output_dict["embedding"] = embedded_tokens
             _, T = inputs.shape # get max T

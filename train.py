@@ -370,7 +370,7 @@ def train(model, data, optimizer, criterion, args, meta):
         loss = criterion(logits.view(-1, meta.num_targets).squeeze(), y)
 
         # Perform weight tying if required
-        if args.tying > 0.0 and args.model_name == "JWA":
+        if args.tying > 0.0: #  and args.model_name == "JWA"
             e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
             h = return_dict["hiddens"]  # TxBxH
 
@@ -378,8 +378,8 @@ def train(model, data, optimizer, criterion, args, meta):
             reg = (h - e).norm(2, dim=-1).mean()
             loss += args.tying * reg
 
-        if args.conicity > 0.0:
-            h = return_dict["hidden"].transpose(0, 1)  # [BxTxH]
+        if args.conicity > 0.0: #  and args.model_name == "JWA"
+            h = return_dict["hiddens"].transpose(0, 1)  # [BxTxH]
             # Compute mean hidden across T
             h_mu = h.mean(1, keepdim=True)  # [Bx1xH]
             # Compute ATM
