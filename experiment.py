@@ -374,7 +374,12 @@ class Experiment:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
                 y_true_list.append(y.cpu())
 
-                logits, _ = model(x, lengths)
+                if self.args.model_name != 'vanilla-DBERT':
+                    logits, _ = model(x, lengths)
+                else:
+                    maxlen = lengths.max()
+                    mask = torch.arange(maxlen, device=lengths.device)[None, :] >= lengths[:, None]
+                    logits = model(x, attention_mask=mask).logits
                 logit_list.append(logits.cpu())
 
         logit_tensor = torch.cat(logit_list)
