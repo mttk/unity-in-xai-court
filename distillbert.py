@@ -33,6 +33,7 @@ from util import Config
 
 def make_vanilla_distilbert(args, meta):
     model = transformers.DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=meta.num_targets)
+    model.captum_sub_model = lambda x: None
     return model
 
 ################################
