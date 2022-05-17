@@ -99,7 +99,11 @@ class Experiment:
             model.parameters(), self.args.lr, weight_decay=self.args.l2
         )
         # Prepare interpreters
-        interpreters = {i: get_interpreter(i)(model) for i in self.args.interpreters}
+        if self.args.model_name != 'vanilla-DBERT':
+            interpreters = {i: get_interpreter(i)(model) for i in self.args.interpreters}
+        else:
+            # Not needed as variable is not used for van-dbert, but just in case
+            interpreters = None
 
         train_results = []
         eval_results = []
