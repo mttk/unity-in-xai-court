@@ -210,7 +210,7 @@ class Experiment:
                 logits, return_dict = model(x, lengths)
             else:
                 maxlen = lengths.max()
-                mask = torch.arange(maxlen)[None, :] >= lengths[:, None]
+                mask = torch.arange(maxlen, device=lengths.device)[None, :] >= lengths[:, None]
                 logits = model(x, attention_mask=mask).logits
 
             logit_list.append(logits)
@@ -293,7 +293,7 @@ class Experiment:
                     logits, _ = model(x, lengths)
                 else:
                     maxlen = lengths.max()
-                    mask = torch.arange(maxlen)[None, :] >= lengths[:, None]
+                    mask = torch.arange(maxlen, device=lengths.device)[None, :] >= lengths[:, None]
                     logits = model(x, attention_mask=mask).logits
                 logit_list.append(logits.cpu())
 
