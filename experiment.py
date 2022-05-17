@@ -124,20 +124,27 @@ class Experiment:
 
             # c) Calculate intepretability metrics
             logging.info("Calculating intepretability metrics...")
-            intepret_result_dict = interpret_evaluate(
-                interpreters,
-                model,
-                self.test_iter,
-                self.args,
-                self.meta,
-                use_rationales=False,
-            )
-            scores, raw_correlations = pairwise_correlation(
-                intepret_result_dict["attributions"], correlations
-            )
+            if self.args.model_name != 'vanilla-DBERT':
+                intepret_result_dict = interpret_evaluate(
+                    interpreters,
+                    model,
+                    self.test_iter,
+                    self.args,
+                    self.meta,
+                    use_rationales=False,
+                )
+                scores, raw_correlations = pairwise_correlation(
+                    intepret_result_dict["attributions"], correlations
+                )
+                attributions_results.append(intepret_result_dict["attributions"])
+            else:
+                # Make dummy scores and correlations sos code deosn't break
+                scores = []
+                raw_correlations = []
+                attributions_results.append([])
+
             agreement_results.append(scores)
             correlation_results.append(raw_correlations)
-            attributions_results.append(intepret_result_dict["attributions"])
             logging.info("Interpretability scores", scores)
 
             # d) Calculate epoch cartography
@@ -194,7 +201,14 @@ class Experiment:
             y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
             y_true_list.append(y)
 
-            logits, return_dict = model(x, lengths)
+            if self.args.model_name != 'vanilla-DBERT':
+                # Vanilla distilBert returns only logits
+                logits, return_dict = model(x, lengths)
+            else:
+                maxlen = lengths.max()
+                mask = torch.arange(maxlen)[None, :] >= lengths[:, None]
+                logits = model(x, attention_mask=mask).logits
+
             logit_list.append(logits)
 
             # Bookkeeping and cast label to float
@@ -268,7 +282,12 @@ class Experiment:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
                 y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
 
-                logits, _ = model(x, lengths)
+                if self.args.model_name != 'vanilla-DBERT':
+                    logits, _ = model(x, lengths)
+                else:
+                    maxlen = lengths.max()
+                    mask = torch.arange(maxlen)[None, :] >= lengths[:, None]
+                    logits = model(x, attention_mask=mask).logits
                 logit_list.append(logits.cpu())
 
                 # Bookkeeping and cast label to float
