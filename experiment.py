@@ -141,6 +141,7 @@ class Experiment:
                     intepret_result_dict["attributions"], correlations
                 )
                 attributions_results.append(intepret_result_dict["attributions"])
+                logging.info("Interpretability scores", scores)
             else:
                 # Make dummy scores and correlations sos code deosn't break
                 scores = []
@@ -149,7 +150,6 @@ class Experiment:
 
             agreement_results.append(scores)
             correlation_results.append(raw_correlations)
-            logging.info("Interpretability scores", scores)
 
             # d) Calculate epoch cartography
             logging.info("Calculating cartography...")
