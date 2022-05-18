@@ -42,6 +42,7 @@ models = {
     "JWA": JWAttentionClassifier,
     "MLP": MLP,
     "DBERT": DistilBertForSequenceClassification.from_huggingface_model_name,
+    "vanilla-DBERT": make_vanilla_distilbert
 }
 
 

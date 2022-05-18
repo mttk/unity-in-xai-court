@@ -7,18 +7,20 @@ Allen NLP compatibility code taken from https://github.com/allenai/allennlp/pull
 
 from copy import deepcopy
 import math
-from typing import Dict, List, Optional, Iterable, Union
+import torch
+from torch import Tensor
+import transformers
+import numpy as np
 
+from transformers import AutoModel, PreTrainedModel
+from typing import Dict, List, Optional, Iterable, Union
 from allennlp.data.batch import Batch
 from allennlp.common import JsonDict
 from allennlp.data import TextFieldTensors, Vocabulary, Instance
 from allennlp.nn import util
 from allennlp.training.metrics import CategoricalAccuracy
-import numpy as np
-import torch
-from torch import Tensor
 import torch.nn as nn
-from transformers import AutoModel, PreTrainedModel
+
 
 # Local imports
 from model import CaptumCompatible
@@ -28,6 +30,10 @@ from modules.attention.attention import Attention, AttentionAnalysisMethods
 from modules.attention.self import MultiHeadSelfAttention
 
 from util import Config
+
+def make_vanilla_distilbert(args, meta):
+    model = transformers.DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=meta.num_targets)
+    return model
 
 ################################
 # DistillBert based classifier #
