@@ -35,6 +35,7 @@ dataset_loaders = {
     "TSE": load_tse,
     "TREC": load_trec,
     "SST": load_sst,
+    "SUBJ": load_subj,
 }
 
 models = {
@@ -108,7 +109,7 @@ def make_parser():
         default="glove",
         help="Pretrained vectors to use [glove, fasttext]",
     )
-    parser.add_argument("--clip", type=float, default=5, help="gradient clipping")
+    parser.add_argument("--clip", type=float, default=1.0, help="gradient clipping")
     parser.add_argument("--epochs", type=int, default=5, help="upper epoch limit")
     parser.add_argument(
         "--batch_size", type=int, default=32, metavar="N", help="batch size"
@@ -370,7 +371,7 @@ def train(model, data, optimizer, criterion, args, meta):
         loss = criterion(logits.view(-1, meta.num_targets).squeeze(), y)
 
         # Perform weight tying if required
-        if args.tying > 0.0: #  and args.model_name == "JWA"
+        if args.tying > 0.0:  #  and args.model_name == "JWA"
             e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
             h = return_dict["hiddens"]  # TxBxH
 
@@ -378,7 +379,7 @@ def train(model, data, optimizer, criterion, args, meta):
             reg = (h - e).norm(2, dim=-1).mean()
             loss += args.tying * reg
 
-        if args.conicity > 0.0: #  and args.model_name == "JWA"
+        if args.conicity > 0.0:  #  and args.model_name == "JWA"
             h = return_dict["hiddens"].transpose(0, 1)  # [BxTxH]
             # Compute mean hidden across T
             h_mu = h.mean(1, keepdim=True)  # [Bx1xH]

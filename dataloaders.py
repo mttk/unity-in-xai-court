@@ -551,6 +551,20 @@ def load_trec(
     )
 
 
+def load_subj(
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+):
+
+    return load_dataset(
+        "data/SUBJ",
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
+
+
 def load_trec_hf(label="label-coarse", max_vocab_size=20_000, max_seq_len=200):
     vocab = Vocab(max_size=max_vocab_size)
     fields = [

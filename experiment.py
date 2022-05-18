@@ -95,8 +95,15 @@ class Experiment:
             train=False,
             indices=indices,
         )
-        optimizer = torch.optim.Adam(
-            model.parameters(), self.args.lr, weight_decay=self.args.l2
+        # optimizer = torch.optim.AdamW(
+        #     filter(lambda p: p.requires_grad, model.parameters()),
+        #     self.args.lr,
+        #     weight_decay=self.args.l2,
+        # )
+        optimizer = torch.optim.AdamW(
+            model.parameters(),
+            self.args.lr,
+            weight_decay=self.args.l2,
         )
         # Prepare interpreters
         interpreters = {i: get_interpreter(i)(model) for i in self.args.interpreters}
@@ -188,6 +195,8 @@ class Experiment:
         for batch_num, batch in enumerate(train_iter):
             t = time.time()
 
+            optimizer.zero_grad()
+
             # Unpack batch & cast to device
             (x, lengths), y = batch.text, batch.label
 
@@ -205,10 +214,11 @@ class Experiment:
                 # binary cross entropy, cast labels to float
                 y = y.type(torch.float)
 
+            # loss = criterion(logits, y)
             loss = criterion(logits.view(-1, self.meta.num_targets).squeeze(), y)
 
             # Perform weight tying if required
-            if self.args.tying > 0.0: #  and self.args.model_name == "JWA"
+            if self.args.tying > 0.0:  #  and self.args.model_name == "JWA"
                 e = return_dict["embeddings"].transpose(0, 1)  # BxTxH -> TxBxH
                 h = return_dict["hiddens"]  # TxBxH
 
@@ -217,7 +227,7 @@ class Experiment:
                 loss += self.args.tying * reg
 
             # Perform conicity regularization if required
-            if self.args.conicity > 0.0: #  and self.args.model_name == "JWA"
+            if self.args.conicity > 0.0:  #  and self.args.model_name == "JWA"
                 h = return_dict["hiddens"].transpose(0, 1)  # [BxTxH]
                 # Compute mean hidden across T
                 h_mu = h.mean(1, keepdim=True)  # [Bx1xH]
@@ -229,7 +239,6 @@ class Experiment:
 
             total_loss += float(loss)
 
-            optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), self.args.clip)
             optimizer.step()
