@@ -593,7 +593,7 @@ def main():
 
     tokenizer = None
     # If we're using bert, use the pretrained tokenizer instead
-    if args.model_name == "DBERT":
+    if args.model_name == "DBERT" or args.model_name == 'vanilla-DBERT':
         tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
         splits, _ = dataloader(tokenizer=tokenizer)
         vocab = TokenizerVocabWrapper(tokenizer)
