@@ -286,55 +286,19 @@ def lowercase_hook(raw, tokenized):
 
 
 def load_imdb(
+    meta,
     tokenizer=None,
-    train_path="data/IMDB/train.csv",
-    valid_path="data/IMDB/dev.csv",
-    test_path="data/IMDB/test.csv",
-    max_size=20000,
-    max_len=200,
+    max_vocab_size=20_000,
+    max_seq_len=200,
 ):
 
-    post_hooks = [lowercase_hook]
-    if max_len:
-        post_hooks.append(MaxLenHook(max_len))
-
-    if tokenizer is None:
-        vocab = Vocab(max_size=max_size)
-        fields = [
-            Field("id"),
-            Field(
-                "text",
-                numericalizer=vocab,
-                include_lengths=True,
-                posttokenize_hooks=post_hooks,
-                keep_raw=True,
-            ),
-            LabelField("label"),
-        ]
-    else:
-        # Use BERT subword tokenization
-        vocab = None
-        pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
-        fields = [
-            Field("id"),
-            Field(
-                "text",
-                tokenizer=tokenizer.tokenize,
-                padding_token=pad_index,
-                numericalizer=tokenizer.convert_tokens_to_ids,
-                include_lengths=True,
-                posttokenize_hooks=post_hooks,
-                keep_raw=True,
-            ),
-            LabelField("label"),
-        ]
-
-    train_dataset = TabularDataset(train_path, format="csv", fields=fields)
-    valid_dataset = TabularDataset(valid_path, format="csv", fields=fields)
-    test_dataset = TabularDataset(test_path, format="csv", fields=fields)
-
-    train_dataset.finalize_fields()
-    return (train_dataset, valid_dataset, test_dataset), vocab
+    return load_dataset(
+        "data/IMDB",
+        meta=meta,
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
 
 
 def load_imdb_sentences(
@@ -464,7 +428,9 @@ def test_load_tse_rationale():
     print(vocab.get_padding_index())
 
 
-def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=200):
+def load_dataset(
+    data_dir, meta, tokenizer=None, max_vocab_size=20_000, max_seq_len=200
+):
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
         fields = [
@@ -479,7 +445,7 @@ def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=20
         ]
     else:
         # Use BERT subword tokenization
-        vocab = None
+        vocab = TokenizerVocabWrapper(tokenizer)
         pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
         fields = [
             Field("id"),
@@ -493,6 +459,7 @@ def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=20
             ),
             LabelField("label"),
         ]
+
     train = TabularDataset(
         os.path.join(data_dir, "train.csv"), format="csv", fields=fields
     )
@@ -501,16 +468,24 @@ def load_dataset(data_dir, tokenizer=None, max_vocab_size=20_000, max_seq_len=20
         os.path.join(data_dir, "test.csv"), format="csv", fields=fields
     )
     train.finalize_fields()
+
+    meta.vocab = vocab
+    meta.num_tokens = len(vocab)
+    meta.padding_idx = vocab.get_padding_index()
+    meta.num_labels = len(train.field("label").vocab)
+
     return (train, val, test), vocab
 
 
 def load_sst(
+    meta,
     tokenizer=None,
     max_vocab_size=20_000,
     max_seq_len=200,
 ):
     return load_dataset(
         "data/SST",
+        meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,
         max_seq_len=max_seq_len,

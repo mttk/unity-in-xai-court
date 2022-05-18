@@ -42,8 +42,10 @@ models = {
     "JWA": JWAttentionClassifier,
     "MLP": MLP,
     "DBERT": DistilBertForSequenceClassification.from_huggingface_model_name,
-    "vanilla-DBERT": make_vanilla_distilbert
+    "vanilla-DBERT": make_vanilla_distilbert,
 }
+
+TRANSFORMERS = ["DBERT", "vanilla-DBERT"]
 
 
 def make_parser():
@@ -55,7 +57,10 @@ def make_parser():
         help="Data corpus: [IMDB, IMDB-rationale, TSE, TREC, SST]",
     )
     parser.add_argument(
-        "--model-name", type=str, default="JWA", help="Model: [JWA, MLP, DBERT]"
+        "--model-name",
+        type=str,
+        default="JWA",
+        help="Model: [JWA, MLP, DBERT, vanilla-DBERT]",
     )
     parser.add_argument(
         "--pretrained_model",
@@ -240,7 +245,10 @@ def correct_for_missing(indices, mask):
 def initialize_model(args, meta):
     # 1. Construct encoder (shared in any case)
     # 2. Construct decoder / decoders
-    if not hasattr(meta, "embeddings") and args.model_name != "DBERT":
+    if not hasattr(meta, "embeddings") and args.model_name not in [
+        "DBERT",
+        "vanilla-DBERT",
+    ]:
         # Cache embeddings
         meta.embeddings = torch.tensor(load_embeddings(meta.vocab, name="glove"))
     model_cls = models[args.model_name]
@@ -485,7 +493,7 @@ def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=Non
     model.to(device)
 
     # TODO: use AdamW for DBERT as default
-    if args.model_name == "DBERT":
+    if args.model_name in TRANSFORMERS:
         optimizer = torch.optim.AdamW(model.parameters(), args.lr, weight_decay=args.l2)
     else:
         optimizer = torch.optim.Adam(model.parameters(), args.lr, weight_decay=args.l2)
@@ -594,7 +602,7 @@ def main():
 
     tokenizer = None
     # If we're using bert, use the pretrained tokenizer instead
-    if args.model_name == "DBERT":
+    if args.model_name in TRANSFORMERS:
         tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
         splits, _ = dataloader(tokenizer=tokenizer)
         vocab = TokenizerVocabWrapper(tokenizer)

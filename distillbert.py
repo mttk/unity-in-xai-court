@@ -31,9 +31,13 @@ from modules.attention.self import MultiHeadSelfAttention
 
 from util import Config
 
+
 def make_vanilla_distilbert(args, meta):
-    model = transformers.DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased", num_labels=meta.num_targets)
+    model = transformers.DistilBertForSequenceClassification.from_pretrained(
+        "distilbert-base-uncased", num_labels=meta.num_targets
+    )
     return model
+
 
 ################################
 # DistillBert based classifier #

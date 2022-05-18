@@ -19,11 +19,12 @@ if __name__ == "__main__":
 
     meta = Config()
 
-    (train, val, test), vocab = dataloader()
-    meta.vocab = vocab
-    meta.num_tokens = len(vocab)
-    meta.padding_idx = vocab.get_padding_index()
-    meta.num_labels = len(train.field("label").vocab)
+    if args.model_name in TRANSFORMERS:
+        tokenizer = DistilBertTokenizer.from_pretrained(args.pretrained_model)
+    else:
+        tokenizer = None
+
+    (train, val, test), vocab = dataloader(meta=meta, tokenizer=tokenizer)
 
     # Construct correlation metrics
     correlations = [get_corr(key)() for key in args.correlation_measures]
@@ -83,6 +84,7 @@ if __name__ == "__main__":
         meta_info["test_lengths"] = experiment.test_lengths.tolist()
         meta_info["test_mapping"] = experiment.get_id_mapping()
 
+        print("PADDING:", meta.padding_idx)
         results = experiment.run(
             create_model_fn=initialize_model,
             criterion=criterion,
