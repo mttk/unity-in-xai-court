@@ -285,6 +285,11 @@ def lowercase_hook(raw, tokenized):
     return raw, [tok.lower() for tok in tokenized]
 
 
+def remove_nonalnum(raw, tokenized):
+  # Remove non alphanumeric tokens
+  return raw, [tok for tok in tokenized if isalnum(tok)]
+
+
 def load_imdb(
     meta,
     tokenizer=None,
@@ -439,7 +444,9 @@ def load_dataset(
                 "text",
                 numericalizer=vocab,
                 include_lengths=True,
-                posttokenize_hooks=[MaxLenHook(max_seq_len), lowercase_hook],
+                posttokenize_hooks=[remove_nonalnum,
+                                    MaxLenHook(max_seq_len),
+                                    lowercase_hook],
             ),
             LabelField("label"),
         ]
@@ -455,7 +462,9 @@ def load_dataset(
                 padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
-                posttokenize_hooks=[MaxLenHook(max_seq_len), lowercase_hook],
+                posttokenize_hooks=[remove_nonalnum,
+                                    MaxLenHook(max_seq_len),
+                                    lowercase_hook],
             ),
             LabelField("label"),
         ]
@@ -510,6 +519,19 @@ def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
     print(vocab.reverse_numericalize(text[0]))
     print(length[0])
     print(vocab.get_padding_index())
+
+def load_jwa_sst(
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+    ):
+
+    return load_dataset(
+        "data/JWA-SST",
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
 
 
 def load_trec(
