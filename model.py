@@ -134,7 +134,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
         #    embedded_tokens, batch_first=True, lengths=lengths
         #)
         # print("FI", h, embedded_tokens.shape)
-        o, h = self.rnn(h)
+        o, h = self.rnn(h.transpose(0,1))
         # o, _ = torch.nn.utils.rnn.pad_packed_sequence(o, batch_first=False)
 
         if isinstance(h, tuple):  # LSTM
