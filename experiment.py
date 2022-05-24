@@ -92,15 +92,15 @@ class Experiment:
             self.train_set,
             self.device,
             batch_size=self.batch_size,
-            train=False,
-            indices=indices,
+            train=True,
+            # indices=indices,
         )
         # optimizer = torch.optim.AdamW(
         #     filter(lambda p: p.requires_grad, model.parameters()),
         #     self.args.lr,
         #     weight_decay=self.args.l2,
         # )
-        optimizer = torch.optim.AdamW(
+        optimizer = torch.optim.Adam( # W
             model.parameters(),
             self.args.lr,
             weight_decay=self.args.l2,
