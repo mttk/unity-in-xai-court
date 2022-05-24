@@ -100,7 +100,7 @@ class Experiment:
         #     self.args.lr,
         #     weight_decay=self.args.l2,
         # )
-        optimizer = torch.optim.Adam( # W
+        optimizer = torch.optim.AdamW(
             model.parameters(),
             self.args.lr,
             weight_decay=self.args.l2,
@@ -206,7 +206,7 @@ class Experiment:
         for batch_num, batch in enumerate(train_iter):
             t = time.time()
 
-            model.zero_grad()
+            optimizer.zero_grad()
 
             # Unpack batch & cast to device
             (x, lengths), y = batch.text, batch.label

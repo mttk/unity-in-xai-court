@@ -641,7 +641,7 @@ def add_ids_to_files(root_folder):
                 for idx, line in enumerate(infile):
                     parts = line.strip().split(",")
                     if idx == 0: continue
-                    outfile.write(f"{idx-1},\"{parts[0]}\",{parts[1]}\n")
+                    outfile.write(f"{idx-1},{parts[0]},{parts[1]}\n")
 
 
 if __name__ == "__main__":
