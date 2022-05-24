@@ -436,7 +436,9 @@ def test_load_tse_rationale():
 
 
 def load_dataset(
-    data_dir, meta, tokenizer=None, max_vocab_size=20_000, max_seq_len=200
+    data_dir, meta, tokenizer=None, 
+    max_vocab_size=20_000,
+    max_seq_len=200
 ):
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
@@ -523,13 +525,15 @@ def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
     print(vocab.get_padding_index())
 
 def load_jwa_sst(
-    tokenizer=None,
-    max_vocab_size=20_000,
-    max_seq_len=200,
+        meta,
+        tokenizer=None,
+        max_vocab_size=20_000,
+        max_seq_len=200,
     ):
 
     return load_dataset(
         "data/JWA-SST",
+        meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,
         max_seq_len=max_seq_len,
@@ -537,6 +541,7 @@ def load_jwa_sst(
 
 
 def load_trec(
+    meta,
     tokenizer=None,
     max_vocab_size=20_000,
     max_seq_len=200,
@@ -544,6 +549,7 @@ def load_trec(
 
     return load_dataset(
         "data/TREC",
+        meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,
         max_seq_len=max_seq_len,
@@ -551,6 +557,7 @@ def load_trec(
 
 
 def load_subj(
+    meta,
     tokenizer=None,
     max_vocab_size=20_000,
     max_seq_len=200,
@@ -558,6 +565,7 @@ def load_subj(
 
     return load_dataset(
         "data/SUBJ",
+        meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,
         max_seq_len=max_seq_len,
