@@ -74,7 +74,7 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
     #    matrix_class=cast_to_device,
     #)
 
-    iterator = BucketIterator(
+    iterator = Iterator(
         dataset,
         batch_size=batch_size,
      #   bucket_sort_key=instance_length,
