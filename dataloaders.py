@@ -623,8 +623,21 @@ def test_load_trec():
     print(vocab.get_padding_index())
 
 
+def add_ids_to_files(root_folder):
+    split_ins = ['train_old.csv', 'dev_old.csv', 'test_old.csv']
+    split_outs = ['train.csv', 'dev.csv', 'test.csv']
+
+    for split_in, split_out in zip(split_ins, split_outs):
+        with open(os.path.join(root_folder, split_in), 'r') as infile:
+            with open(os.path.join(root_folder, split_out), 'w') as outfile:
+                for idx, line in infile:
+                    parts = line.strip().split(",")
+                    if idx == 0: continue
+                    outfile.write(f"{idx-1},\"{parts[0]}\",{parts[1]}\n")
+
+
 if __name__ == "__main__":
-    test_load_imdb_sentences()
+    add_ids_to_files('data/JWA-SST')
     # (train, dev, test), vocab = load_imdb_rationale()
     # print(len(train), len(dev), len(test))
     # print(train[0].keys())
