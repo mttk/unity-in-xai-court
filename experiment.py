@@ -92,7 +92,7 @@ class Experiment:
             self.train_set,
             self.device,
             batch_size=self.batch_size,
-            train=True,
+            train=True, # [Debug] was False
             # indices=indices,
         )
         # optimizer = torch.optim.AdamW(
@@ -100,7 +100,7 @@ class Experiment:
         #     self.args.lr,
         #     weight_decay=self.args.l2,
         # )
-        optimizer = torch.optim.Adam( # W
+        optimizer = torch.optim.AdamW( # W
             model.parameters(),
             self.args.lr,
             weight_decay=self.args.l2,
