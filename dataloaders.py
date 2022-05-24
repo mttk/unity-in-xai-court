@@ -284,6 +284,8 @@ class MaxLenHook:
 def lowercase_hook(raw, tokenized):
     return raw, [tok.lower() for tok in tokenized]
 
+def isalnum(token):
+    return any(c.isalnum() for c in token)
 
 def remove_nonalnum(raw, tokenized):
   # Remove non alphanumeric tokens
