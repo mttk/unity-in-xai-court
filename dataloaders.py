@@ -111,7 +111,7 @@ class BucketIterator(Iterator):
             # Cache state prior to shuffle so we can use it when unpickling
             self._shuffler_state = self.get_internal_random_state()
             # self._shuffler.shuffle(indices)
-            dataset = dataset.shuffle_examples(random_state=self._shuffler_state)
+            dataset.shuffle_examples(random_state=self._shuffler_state)
 
         # Determine the step where iteration was stopped for lookahead & within bucket
         lookahead_start = (
