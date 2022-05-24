@@ -6,7 +6,7 @@ from sklearn.utils import shuffle
 import torch
 
 import numpy as np
-from podium import Vocab, Field, LabelField, BucketIterator
+from podium import Vocab, Field, LabelField, Iterator, BucketIterator
 from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
