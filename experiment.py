@@ -100,7 +100,7 @@ class Experiment:
         #     self.args.lr,
         #     weight_decay=self.args.l2,
         # )
-        optimizer = torch.optim.AdamW(
+        optimizer = torch.optim.Adam( # W
             model.parameters(),
             self.args.lr,
             weight_decay=self.args.l2,
