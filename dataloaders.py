@@ -6,7 +6,7 @@ from sklearn.utils import shuffle
 import torch
 
 import numpy as np
-from podium import Vocab, Field, LabelField, BucketIterator
+from podium import Vocab, Field, LabelField, BucketIterator, Iterator
 from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
@@ -66,10 +66,10 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
     if indices is not None:
         dataset = dataset[indices]
 
-    iterator = BucketIterator(
+    iterator = Iterator(
         dataset,
         batch_size=batch_size,
-        bucket_sort_key=instance_length,
+        sort_key=instance_length,
         shuffle=train,
         matrix_class=cast_to_device,
     )
@@ -527,6 +527,7 @@ def load_trec(
 
 
 def load_subj(
+    meta,
     tokenizer=None,
     max_vocab_size=20_000,
     max_seq_len=200,
@@ -534,6 +535,7 @@ def load_subj(
 
     return load_dataset(
         "data/SUBJ",
+        meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,
         max_seq_len=max_seq_len,
