@@ -6,11 +6,12 @@ from sklearn.utils import shuffle
 import torch
 
 import numpy as np
-from podium import Vocab, Field, LabelField, Iterator, BucketIterator
+from podium import Vocab, Field, LabelField, Iterator #, BucketIterator
 from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
 from podium.datasets.impl import SST
+from podium.utils.general_utils import repr_type_and_attrs
 
 from transformers import BertTokenizer
 
@@ -22,6 +23,123 @@ from eraser.eraser_utils import (
     annotations_from_jsonl,
     Annotation,
 )
+
+
+class BucketIterator(Iterator):
+    """
+    Creates a bucket iterator which uses a look-ahead heuristic to batch
+    examples in a way that minimizes the amount of necessary padding.
+
+    Uses a bucket of size N x batch_size, and sorts instances within the bucket
+    before splitting into batches, minimizing necessary padding.
+    """
+
+    def __init__(
+        self,
+        dataset=None,
+        batch_size=32,
+        sort_key=None,
+        shuffle=True,
+        seed=1,
+        matrix_class=np.array,
+        internal_random_state=None,
+        look_ahead_multiplier=100,
+        bucket_sort_key=None,
+    ):
+        """
+        Creates a BucketIterator with the given bucket sort key and look-ahead
+        multiplier (how many batch_sizes to look ahead when sorting examples for
+        batches).
+
+        Parameters
+        ----------
+        look_ahead_multiplier : int
+            Multiplier of ``batch_size`` which determines the size of the
+            look-ahead bucket.
+            If ``look_ahead_multiplier == 1``, then the BucketIterator behaves
+            like a normal Iterator.
+            If ``look_ahead_multiplier >= (num_examples / batch_size)``, then
+            the BucketIterator behaves like a normal iterator that sorts the
+            whole dataset.
+            Default is ``100``.
+        bucket_sort_key : callable
+            The callable object used to sort examples in the bucket.
+            If ``bucket_sort_key=None``, then the ``sort_key`` must not be ``None``,
+            otherwise a ``ValueError`` is raised.
+            Default is ``None``.
+
+        Raises
+        ------
+        ValueError
+            If sort_key and bucket_sort_key are both None.
+        """
+
+        if sort_key is None and bucket_sort_key is None:
+            raise ValueError(
+                "For BucketIterator to work, either sort_key or "
+                "bucket_sort_key must be != None."
+            )
+
+        super().__init__(
+            dataset,
+            batch_size,
+            sort_key=sort_key,
+            shuffle=shuffle,
+            seed=seed,
+            matrix_class=matrix_class,
+            internal_random_state=internal_random_state,
+        )
+
+        self.bucket_sort_key = bucket_sort_key
+        self.look_ahead_multiplier = look_ahead_multiplier
+
+    def __iter__(self) -> PythonIterator[Tuple[NamedTuple, NamedTuple]]:
+        step = self.batch_size * self.look_ahead_multiplier
+        dataset = self._dataset
+
+        # Fix: Shuffle dataset if the shuffle is turned on, only IF sort key is not none
+        if self._shuffle and self._sort_key is None:
+            # indices = list(range(len(dataset)))
+            # Cache state prior to shuffle so we can use it when unpickling
+            self._shuffler_state = self.get_internal_random_state()
+            # self._shuffler.shuffle(indices)
+            dataset = dataset.shuffle_examples(random_state=_shuffler_state)
+
+        # Determine the step where iteration was stopped for lookahead & within bucket
+        lookahead_start = (
+            self.iterations // self.look_ahead_multiplier * self.look_ahead_multiplier
+        )
+        batch_start = self.iterations % self.look_ahead_multiplier
+
+        if self._sort_key is not None:
+            dataset = dataset.sorted(key=self._sort_key)
+        for i in range(lookahead_start, len(dataset), step):
+            bucket = dataset[i : i + step]
+
+            if self.bucket_sort_key is not None:
+                bucket = bucket.sorted(key=self.bucket_sort_key)
+
+            for j in range(batch_start, len(bucket), self.batch_size):
+                batch_dataset = bucket[j : j + self.batch_size]
+                batch = self._create_batch(batch_dataset)
+
+                yield batch
+                self._iterations += 1
+
+        # prepare for new epoch
+        self._iterations = 0
+        self._epoch += 1
+
+    def __repr__(self) -> str:
+        attrs = {
+            "batch_size": self._batch_size,
+            "epoch": self._epoch,
+            "iteration": self._iterations,
+            "shuffle": self._shuffle,
+            "look_ahead_multiplier": self.look_ahead_multiplier,
+        }
+        return repr_type_and_attrs(self, attrs, with_newlines=True)
+
 
 
 class TokenizerVocabWrapper:
