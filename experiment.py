@@ -206,7 +206,7 @@ class Experiment:
         for batch_num, batch in enumerate(train_iter):
             t = time.time()
 
-            optimizer.zero_grad()
+            model.zero_grad()
 
             # Unpack batch & cast to device
             (x, lengths), y = batch.text, batch.label
