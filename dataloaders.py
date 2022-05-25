@@ -6,11 +6,20 @@ from sklearn.utils import shuffle
 import torch
 
 import numpy as np
-from podium import Vocab, Field, LabelField, BucketIterator, Iterator
+from podium import Vocab, Field, LabelField, Iterator #, BucketIterator
 from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
 from podium.datasets.impl import SST
+from podium.utils.general_utils import repr_type_and_attrs
+
+from typing import Callable
+from typing import Iterator as PythonIterator
+from typing import List, NamedTuple, Tuple
+from abc import ABC, abstractmethod
+from collections import defaultdict
+from random import Random
+
 
 from transformers import BertTokenizer
 
@@ -22,6 +31,124 @@ from eraser.eraser_utils import (
     annotations_from_jsonl,
     Annotation,
 )
+
+
+class BucketIterator(Iterator):
+    """
+    Creates a bucket iterator which uses a look-ahead heuristic to batch
+    examples in a way that minimizes the amount of necessary padding.
+
+    Uses a bucket of size N x batch_size, and sorts instances within the bucket
+    before splitting into batches, minimizing necessary padding.
+    """
+
+    def __init__(
+        self,
+        dataset=None,
+        batch_size=32,
+        sort_key=None,
+        shuffle=True,
+        seed=1,
+        matrix_class=np.array,
+        internal_random_state=None,
+        look_ahead_multiplier=100,
+        bucket_sort_key=None,
+    ):
+        """
+        Creates a BucketIterator with the given bucket sort key and look-ahead
+        multiplier (how many batch_sizes to look ahead when sorting examples for
+        batches).
+
+        Parameters
+        ----------
+        look_ahead_multiplier : int
+            Multiplier of ``batch_size`` which determines the size of the
+            look-ahead bucket.
+            If ``look_ahead_multiplier == 1``, then the BucketIterator behaves
+            like a normal Iterator.
+            If ``look_ahead_multiplier >= (num_examples / batch_size)``, then
+            the BucketIterator behaves like a normal iterator that sorts the
+            whole dataset.
+            Default is ``100``.
+        bucket_sort_key : callable
+            The callable object used to sort examples in the bucket.
+            If ``bucket_sort_key=None``, then the ``sort_key`` must not be ``None``,
+            otherwise a ``ValueError`` is raised.
+            Default is ``None``.
+
+        Raises
+        ------
+        ValueError
+            If sort_key and bucket_sort_key are both None.
+        """
+
+        if sort_key is None and bucket_sort_key is None:
+            raise ValueError(
+                "For BucketIterator to work, either sort_key or "
+                "bucket_sort_key must be != None."
+            )
+
+        super().__init__(
+            dataset,
+            batch_size,
+            sort_key=sort_key,
+            shuffle=shuffle,
+            seed=seed,
+            matrix_class=matrix_class,
+            internal_random_state=internal_random_state,
+        )
+
+        self.bucket_sort_key = bucket_sort_key
+        self.look_ahead_multiplier = look_ahead_multiplier
+
+    def __iter__(self) -> PythonIterator[Tuple[NamedTuple, NamedTuple]]:
+        step = self.batch_size * self.look_ahead_multiplier
+        dataset = self._dataset
+
+        # Fix: Shuffle dataset if the shuffle is turned on, only IF sort key is not none
+        if self._shuffle and self._sort_key is None:
+            indices = list(range(len(dataset)))
+            # Cache state prior to shuffle so we can use it when unpickling
+            self._shuffler_state = self.get_internal_random_state()
+            self._shuffler.shuffle(indices)
+            # dataset.shuffle_examples(random_state=self._shuffler_state)
+            dataset = dataset[indices]
+
+        # Determine the step where iteration was stopped for lookahead & within bucket
+        lookahead_start = (
+            self.iterations // self.look_ahead_multiplier * self.look_ahead_multiplier
+        )
+        batch_start = self.iterations % self.look_ahead_multiplier
+
+        if self._sort_key is not None:
+            dataset = dataset.sorted(key=self._sort_key)
+        for i in range(lookahead_start, len(dataset), step):
+            bucket = dataset[i : i + step]
+
+            if self.bucket_sort_key is not None:
+                bucket = bucket.sorted(key=self.bucket_sort_key)
+
+            for j in range(batch_start, len(bucket), self.batch_size):
+                batch_dataset = bucket[j : j + self.batch_size]
+                batch = self._create_batch(batch_dataset)
+
+                yield batch
+                self._iterations += 1
+
+        # prepare for new epoch
+        self._iterations = 0
+        self._epoch += 1
+
+    def __repr__(self) -> str:
+        attrs = {
+            "batch_size": self._batch_size,
+            "epoch": self._epoch,
+            "iteration": self._iterations,
+            "shuffle": self._shuffle,
+            "look_ahead_multiplier": self.look_ahead_multiplier,
+        }
+        return repr_type_and_attrs(self, attrs, with_newlines=True)
+
 
 
 class TokenizerVocabWrapper:
@@ -66,13 +193,22 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
     if indices is not None:
         dataset = dataset[indices]
 
-    iterator = Iterator(
+    iterator = BucketIterator(
         dataset,
         batch_size=batch_size,
         sort_key=instance_length,
         shuffle=train,
         matrix_class=cast_to_device,
+        look_ahead_multiplier=20,
     )
+
+    #iterator = Iterator(
+    #    dataset,
+    #    batch_size=batch_size,
+     #   bucket_sort_key=instance_length,
+    #    shuffle=train,
+    #    matrix_class=cast_to_device,
+    #)
 
     return iterator
 
@@ -284,6 +420,13 @@ class MaxLenHook:
 def lowercase_hook(raw, tokenized):
     return raw, [tok.lower() for tok in tokenized]
 
+def isalnum(token):
+    return any(c.isalnum() for c in token)
+
+def remove_nonalnum(raw, tokenized):
+  # Remove non alphanumeric tokens
+  return raw, [tok for tok in tokenized if isalnum(tok)]
+
 
 def load_imdb(
     meta,
@@ -429,7 +572,9 @@ def test_load_tse_rationale():
 
 
 def load_dataset(
-    data_dir, meta, tokenizer=None, max_vocab_size=20_000, max_seq_len=200
+    data_dir, meta, tokenizer=None, 
+    max_vocab_size=20_000,
+    max_seq_len=200
 ):
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
@@ -439,7 +584,9 @@ def load_dataset(
                 "text",
                 numericalizer=vocab,
                 include_lengths=True,
-                posttokenize_hooks=[MaxLenHook(max_seq_len), lowercase_hook],
+                posttokenize_hooks=[remove_nonalnum,
+                                    MaxLenHook(max_seq_len),
+                                    lowercase_hook],
             ),
             LabelField("label"),
         ]
@@ -455,7 +602,9 @@ def load_dataset(
                 padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
-                posttokenize_hooks=[MaxLenHook(max_seq_len), lowercase_hook],
+                posttokenize_hooks=[remove_nonalnum,
+                                    MaxLenHook(max_seq_len),
+                                    lowercase_hook],
             ),
             LabelField("label"),
         ]
@@ -511,8 +660,24 @@ def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
     print(length[0])
     print(vocab.get_padding_index())
 
+def load_jwa_sst(
+        meta,
+        tokenizer=None,
+        max_vocab_size=20_000,
+        max_seq_len=200,
+    ):
+
+    return load_dataset(
+        "data/JWA-SST",
+        meta=meta,
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
+
 
 def load_trec(
+    meta,
     tokenizer=None,
     max_vocab_size=20_000,
     max_seq_len=200,
@@ -520,6 +685,7 @@ def load_trec(
 
     return load_dataset(
         "data/TREC",
+        meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,
         max_seq_len=max_seq_len,
@@ -593,8 +759,21 @@ def test_load_trec():
     print(vocab.get_padding_index())
 
 
+def add_ids_to_files(root_folder):
+    split_ins = ['train_old.csv', 'dev_old.csv', 'test_old.csv']
+    split_outs = ['train.csv', 'dev.csv', 'test.csv']
+
+    for split_in, split_out in zip(split_ins, split_outs):
+        with open(os.path.join(root_folder, split_in), 'r') as infile:
+            with open(os.path.join(root_folder, split_out), 'w') as outfile:
+                for idx, line in enumerate(infile):
+                    parts = line.strip().split(",")
+                    if idx == 0: continue
+                    outfile.write(f"{idx-1},{parts[0]},{parts[1]}\n")
+
+
 if __name__ == "__main__":
-    test_load_imdb_sentences()
+    add_ids_to_files('data/JWA-SST')
     # (train, dev, test), vocab = load_imdb_rationale()
     # print(len(train), len(dev), len(test))
     # print(train[0].keys())

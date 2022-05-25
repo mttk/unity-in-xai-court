@@ -36,6 +36,7 @@ dataset_loaders = {
     "TREC": load_trec,
     "SST": load_sst,
     "SUBJ": load_subj,
+    "JWA-SST": load_jwa_sst,
 }
 
 models = {
