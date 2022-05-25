@@ -106,8 +106,10 @@ class Experiment:
             weight_decay=self.args.l2,
         )
         # Prepare interpreters
-        if self.args.model_name != 'vanilla-DBERT':
-            interpreters = {i: get_interpreter(i)(model) for i in self.args.interpreters}
+        if self.args.model_name != "vanilla-DBERT":
+            interpreters = {
+                i: get_interpreter(i)(model) for i in self.args.interpreters
+            }
         else:
             # Not needed as variable is not used for van-dbert, but just in case
             interpreters = None
@@ -135,7 +137,7 @@ class Experiment:
 
             # c) Calculate intepretability metrics
             logging.info("Calculating intepretability metrics...")
-            if self.args.model_name != 'vanilla-DBERT':
+            if self.args.model_name != "vanilla-DBERT":
                 intepret_result_dict = interpret_evaluate(
                     interpreters,
                     model,
@@ -214,12 +216,15 @@ class Experiment:
             y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
             y_true_list.append(y)
 
-            if self.args.model_name != 'vanilla-DBERT':
+            if self.args.model_name != "vanilla-DBERT":
                 # Vanilla distilBert returns only logits
                 logits, return_dict = model(x, lengths)
             else:
                 maxlen = lengths.max()
-                mask = torch.arange(maxlen, device=lengths.device)[None, :] >= lengths[:, None]
+                mask = (
+                    torch.arange(maxlen, device=lengths.device)[None, :]
+                    >= lengths[:, None]
+                )
                 logits = model(x, attention_mask=mask).logits
 
             logit_list.append(logits)
@@ -298,11 +303,14 @@ class Experiment:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
                 y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
 
-                if self.args.model_name != 'vanilla-DBERT':
+                if self.args.model_name != "vanilla-DBERT":
                     logits, _ = model(x, lengths)
                 else:
                     maxlen = lengths.max()
-                    mask = torch.arange(maxlen, device=lengths.device)[None, :] >= lengths[:, None]
+                    mask = (
+                        torch.arange(maxlen, device=lengths.device)[None, :]
+                        >= lengths[:, None]
+                    )
                     logits = model(x, attention_mask=mask).logits
                 logit_list.append(logits.cpu())
 
@@ -383,11 +391,14 @@ class Experiment:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
                 y_true_list.append(y.cpu())
 
-                if self.args.model_name != 'vanilla-DBERT':
+                if self.args.model_name != "vanilla-DBERT":
                     logits, _ = model(x, lengths)
                 else:
                     maxlen = lengths.max()
-                    mask = torch.arange(maxlen, device=lengths.device)[None, :] >= lengths[:, None]
+                    mask = (
+                        torch.arange(maxlen, device=lengths.device)[None, :]
+                        >= lengths[:, None]
+                    )
                     logits = model(x, attention_mask=mask).logits
                 logit_list.append(logits.cpu())
 

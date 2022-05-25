@@ -177,11 +177,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
         pred, (hidden, rnn_outputs) = self.forward_inner(e, lengths)
 
         # For additional return arguments
-        return_dict = {
-            "embeddings": e,
-            "encoded": hidden,
-            "hiddens": rnn_outputs
-        }
+        return_dict = {"embeddings": e, "encoded": hidden, "hiddens": rnn_outputs}
 
         return pred, return_dict
 
