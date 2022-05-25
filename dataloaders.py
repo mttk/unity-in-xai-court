@@ -193,7 +193,7 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
     if indices is not None:
         dataset = dataset[indices]
 
-    iterator = Iterator(
+    iterator = BucketIterator(
         dataset,
         batch_size=batch_size,
         sort_key=instance_length,
