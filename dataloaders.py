@@ -6,7 +6,7 @@ from sklearn.utils import shuffle
 import torch
 
 import numpy as np
-from podium import Vocab, Field, LabelField, Iterator #, BucketIterator
+from podium import Vocab, Field, LabelField, Iterator  # , BucketIterator
 from podium.datasets import TabularDataset, Dataset, ExampleFactory
 from podium.datasets.hf import HFDatasetConverter
 from podium.vectorizers import GloVe
@@ -70,7 +70,6 @@ class BucketIterator(Iterator):
             the BucketIterator behaves like a normal iterator that sorts the
             whole dataset.
             Default is ``100``.
-        bucket_sort_key : callable
             The callable object used to sort examples in the bucket.
             If ``bucket_sort_key=None``, then the ``sort_key`` must not be ``None``,
             otherwise a ``ValueError`` is raised.
@@ -150,7 +149,6 @@ class BucketIterator(Iterator):
         return repr_type_and_attrs(self, attrs, with_newlines=True)
 
 
-
 class TokenizerVocabWrapper:
     def __init__(self, tokenizer):
         # wrap BertTokenizer so the method signatures align with podium
@@ -202,13 +200,13 @@ def make_iterable(dataset, device, batch_size=32, train=False, indices=None):
         look_ahead_multiplier=20,
     )
 
-    #iterator = Iterator(
+    # iterator = Iterator(
     #    dataset,
     #    batch_size=batch_size,
-     #   bucket_sort_key=instance_length,
+    #   bucket_sort_key=instance_length,
     #    shuffle=train,
     #    matrix_class=cast_to_device,
-    #)
+    # )
 
     return iterator
 
@@ -420,12 +418,14 @@ class MaxLenHook:
 def lowercase_hook(raw, tokenized):
     return raw, [tok.lower() for tok in tokenized]
 
+
 def isalnum(token):
     return any(c.isalnum() for c in token)
 
+
 def remove_nonalnum(raw, tokenized):
-  # Remove non alphanumeric tokens
-  return raw, [tok for tok in tokenized if isalnum(tok)]
+    # Remove non alphanumeric tokens
+    return raw, [tok for tok in tokenized if isalnum(tok)]
 
 
 def load_imdb(
@@ -572,9 +572,7 @@ def test_load_tse_rationale():
 
 
 def load_dataset(
-    data_dir, meta, tokenizer=None, 
-    max_vocab_size=20_000,
-    max_seq_len=200
+    data_dir, meta, tokenizer=None, max_vocab_size=20_000, max_seq_len=200
 ):
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
@@ -584,9 +582,11 @@ def load_dataset(
                 "text",
                 numericalizer=vocab,
                 include_lengths=True,
-                posttokenize_hooks=[remove_nonalnum,
-                                    MaxLenHook(max_seq_len),
-                                    lowercase_hook],
+                posttokenize_hooks=[
+                    remove_nonalnum,
+                    MaxLenHook(max_seq_len),
+                    lowercase_hook,
+                ],
             ),
             LabelField("label"),
         ]
@@ -602,9 +602,11 @@ def load_dataset(
                 padding_token=pad_index,
                 numericalizer=tokenizer.convert_tokens_to_ids,
                 include_lengths=True,
-                posttokenize_hooks=[remove_nonalnum,
-                                    MaxLenHook(max_seq_len),
-                                    lowercase_hook],
+                posttokenize_hooks=[
+                    remove_nonalnum,
+                    MaxLenHook(max_seq_len),
+                    lowercase_hook,
+                ],
             ),
             LabelField("label"),
         ]
@@ -616,6 +618,7 @@ def load_dataset(
     test = TabularDataset(
         os.path.join(data_dir, "test.csv"), format="csv", fields=fields
     )
+
     train.finalize_fields()
 
     meta.vocab = vocab
@@ -660,12 +663,13 @@ def test_load_sst(max_vocab_size=20_000, max_seq_len=200):
     print(length[0])
     print(vocab.get_padding_index())
 
+
 def load_jwa_sst(
-        meta,
-        tokenizer=None,
-        max_vocab_size=20_000,
-        max_seq_len=200,
-    ):
+    meta,
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+):
 
     return load_dataset(
         "data/JWA-SST",
@@ -760,20 +764,21 @@ def test_load_trec():
 
 
 def add_ids_to_files(root_folder):
-    split_ins = ['train_old.csv', 'dev_old.csv', 'test_old.csv']
-    split_outs = ['train.csv', 'dev.csv', 'test.csv']
+    split_ins = ["train_old.csv", "dev_old.csv", "test_old.csv"]
+    split_outs = ["train.csv", "dev.csv", "test.csv"]
 
     for split_in, split_out in zip(split_ins, split_outs):
-        with open(os.path.join(root_folder, split_in), 'r') as infile:
-            with open(os.path.join(root_folder, split_out), 'w') as outfile:
+        with open(os.path.join(root_folder, split_in), "r") as infile:
+            with open(os.path.join(root_folder, split_out), "w") as outfile:
                 for idx, line in enumerate(infile):
                     parts = line.strip().split(",")
-                    if idx == 0: continue
+                    if idx == 0:
+                        continue
                     outfile.write(f"{idx-1},{parts[0]},{parts[1]}\n")
 
 
 if __name__ == "__main__":
-    add_ids_to_files('data/JWA-SST')
+    add_ids_to_files("data/JWA-SST")
     # (train, dev, test), vocab = load_imdb_rationale()
     # print(len(train), len(dev), len(test))
     # print(train[0].keys())

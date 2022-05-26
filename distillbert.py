@@ -138,8 +138,9 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
 
         # DistillBert
         self.encoder = meta.encoder
-        for param in self.encoder.parameters():
-            param.requires_grad = False
+        # Freeze encoder parameters
+        # for param in self.encoder.parameters():
+        #     param.requires_grad = False
         self.num_labels = meta.num_labels
         # Labels = labels; targets = output probs
         if self.num_labels == 2:
