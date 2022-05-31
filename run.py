@@ -79,7 +79,7 @@ if __name__ == "__main__":
             criterion = nn.CrossEntropyLoss()
             meta.num_targets = meta.num_labels
 
-        experiment = Experiment(train, val, device, args, meta)
+        experiment = Experiment(train, test, device, args, meta)
         meta_info["test_lengths"] = experiment.test_lengths.tolist()
         meta_info["test_mapping"] = experiment.get_id_mapping()
 
