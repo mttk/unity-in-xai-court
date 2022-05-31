@@ -577,7 +577,7 @@ def load_dataset(
     if tokenizer is None:
         vocab = Vocab(max_size=max_vocab_size)
         fields = [
-            Field("id"),
+            Field("id", disable_batch_matrix=True),
             Field(
                 "text",
                 numericalizer=vocab,
@@ -595,7 +595,7 @@ def load_dataset(
         vocab = TokenizerVocabWrapper(tokenizer)
         pad_index = tokenizer.convert_tokens_to_ids(tokenizer.pad_token)
         fields = [
-            Field("id"),
+            Field("id", disable_batch_matrix=True),
             Field(
                 "text",
                 tokenizer=tokenizer.tokenize,
@@ -689,6 +689,38 @@ def load_trec(
 
     return load_dataset(
         "data/TREC",
+        meta=meta,
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
+
+
+def load_cola(
+    meta,
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+):
+
+    return load_dataset(
+        "data/COLA",
+        meta=meta,
+        tokenizer=tokenizer,
+        max_vocab_size=max_vocab_size,
+        max_seq_len=max_seq_len,
+    )
+
+
+def load_polarity(
+    meta,
+    tokenizer=None,
+    max_vocab_size=20_000,
+    max_seq_len=200,
+):
+
+    return load_dataset(
+        "data/POL",
         meta=meta,
         tokenizer=tokenizer,
         max_vocab_size=max_vocab_size,

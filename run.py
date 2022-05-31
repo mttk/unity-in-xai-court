@@ -28,7 +28,6 @@ if __name__ == "__main__":
 
     # Construct correlation metrics
     correlations = [get_corr(key)() for key in args.correlation_measures]
-    print(correlations)
 
     # Initialize logging
     fmt = "%Y-%m-%d-%H-%M"
@@ -80,11 +79,10 @@ if __name__ == "__main__":
             criterion = nn.CrossEntropyLoss()
             meta.num_targets = meta.num_labels
 
-        experiment = Experiment(train, test, device, args, meta)
+        experiment = Experiment(train, val, device, args, meta)
         meta_info["test_lengths"] = experiment.test_lengths.tolist()
         meta_info["test_mapping"] = experiment.get_id_mapping()
 
-        print("PADDING:", meta.padding_idx)
         results = experiment.run(
             create_model_fn=initialize_model,
             criterion=criterion,

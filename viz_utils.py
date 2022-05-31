@@ -460,21 +460,26 @@ def pick_best(exps):
 
 
 def get_best_models(experiments):
-    conicity = [ex for ex in experiments if ex[1]["conicity"] > 0]
-    tying = [ex for ex in experiments if ex[1]["tying"] > 0]
-    l2 = [ex for ex in experiments if ex[1]["l2"] > 0]
     nonreg = [
         ex
         for ex in experiments
         if ex[1]["conicity"] == 0 and ex[1]["tying"] == 0 and ex[1]["l2"] == 0
     ]
+    conicity = [ex for ex in experiments if ex[1]["conicity"] > 0]
+    tying = [ex for ex in experiments if ex[1]["tying"] > 0]
+    l2 = [ex for ex in experiments if ex[1]["l2"] > 0]
 
+    nonreg_pick = pick_best(nonreg)
     con_pick = pick_best(conicity)
     tying_pick = pick_best(tying)
     l2_pick = pick_best(l2)
-    nonreg_pick = pick_best(nonreg)
 
-    return con_pick, tying_pick, l2_pick, nonreg_pick
+    return (nonreg_pick, con_pick, tying_pick, l2_pick), [
+        "non-reg",
+        "conicity",
+        "tying",
+        "l2",
+    ]
 
 
 def plot_agreement_matrix(
@@ -514,6 +519,7 @@ def plot_agreement_matrix(
 
 def plot_attribute_matrix(
     experiments,
+    models,
     figsize=(20, 20),
     attributes=[
         "correctness",
@@ -528,7 +534,7 @@ def plot_attribute_matrix(
         len(experiments), len(attributes) + 1, figsize=figsize, sharex=True
     )
     fig.subplots_adjust(wspace=0.25)
-    for j, (results, meta) in enumerate(experiments):
+    for j, ((results, meta), model) in enumerate(zip(experiments, models)):
         df_tr, df_agr, df_crt_train, df_crt_test, df_attr = results_to_df(results, meta)
         df_crt_avg = cartography_average(df_crt_test)
         dfs = []
@@ -589,7 +595,8 @@ def plot_attribute_matrix(
                 palette="dark",
                 alpha=0.75,
             )
-            g.set_title(attribute)
+            g.set_title(f"{attribute}--{model}")
             g.set_xticklabels(
                 rotation=30, labels=ips, ha="right", rotation_mode="anchor"
             )
+    plt.show()

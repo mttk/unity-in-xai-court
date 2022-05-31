@@ -92,7 +92,7 @@ class Experiment:
             self.train_set,
             self.device,
             batch_size=self.batch_size,
-            train=True, # [Debug] was False
+            train=True,  # [Debug] was False
             # indices=indices,
         )
         # optimizer = torch.optim.AdamW(
@@ -100,7 +100,7 @@ class Experiment:
         #     self.args.lr,
         #     weight_decay=self.args.l2,
         # )
-        optimizer = torch.optim.AdamW( # W
+        optimizer = torch.optim.AdamW(
             model.parameters(),
             self.args.lr,
             weight_decay=self.args.l2,
@@ -435,8 +435,8 @@ class Experiment:
     def extract_lengths(self):
         len_list = []
         for batch in self.test_iter:
-            _, lenghts = batch.text
-            len_list.append(lenghts.cpu())
+            _, lengths = batch.text
+            len_list.append(lengths.cpu())
 
         return torch.cat(len_list)
 

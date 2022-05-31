@@ -37,6 +37,8 @@ dataset_loaders = {
     "SST": load_sst,
     "SUBJ": load_subj,
     "JWA-SST": load_jwa_sst,
+    "POL": load_polarity,
+    "COLA": load_cola,
 }
 
 models = {
