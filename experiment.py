@@ -353,7 +353,7 @@ class Experiment:
         result_dict = {"accuracy": accuracy / len(self.test_set), "f1": f1}
         return result_dict
 
-    def _evaluate_smoothness(self, model)
+    def _evaluate_smoothness(self, model):
         model.eval()
 
         data = self.train_iter # Evaluating on train because the instances
