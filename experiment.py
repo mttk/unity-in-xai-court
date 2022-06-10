@@ -372,7 +372,7 @@ class Experiment:
                 y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
 
                 hidden = model.get_encoded(x, lengths) # [BxH]
-                true_logit = model.decode(hidden, output_dict={})
+                true_logits = model.decode(hidden, output_dict={})
                 # Perturbation experiment: explore local space around hidden representation
                 hidden_l2 = torch.norm(hidden, p=2, dim=-1) # [Bx1]
                 noise_scale = torch.mean(hidden_l2) / 4.
@@ -387,7 +387,7 @@ class Experiment:
                 d_logit_list.append(
                         torch.std(torch.cat(d_logits))
                     )
-                logit_list.append(logits.cpu())
+                logit_list.append(true_logits.cpu())
 
                 print(
                     "[Batch]: {}/{} in {:.5f} seconds".format(
