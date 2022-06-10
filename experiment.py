@@ -388,9 +388,9 @@ class Experiment:
                 # print("Logits shape", torch.stack(d_logits).shape)
 
                 d_logit_list.append(
-                        torch.std(torch.stack(d_logits), axis=0).mean()
+                        torch.std(torch.stack(d_logits), axis=0)
                     )
-                print(d_logit_list[-1].shape)
+                # print(d_logit_list[-1].shape)
                 logit_list.append(true_logits.cpu())
 
                 print(
@@ -402,7 +402,7 @@ class Experiment:
                 )
 
         logits = torch.cat(logit_list)
-        d_logits = torch.stack(d_logit_list)
+        d_logits = torch.cat(d_logit_list)
         y_true = torch.cat(y_true_list)
 
         logging.info(
