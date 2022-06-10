@@ -382,11 +382,13 @@ class Experiment:
                     # Consider increasing norm gradually
                     d_hidden = torch.randn(hidden.shape, device=noise_scale.device) * noise_scale
                     d_logit = model.decode(hidden + d_hidden, output_dict={})
-                    d_logits.append(d_logit.detach().cpu())
+                    d_logits.append(d_logit.detach().cpu()) # 32 x 1
 
+                print("Logits shape", torch.cat(d_logits).shape)
                 d_logit_list.append(
-                        torch.std(torch.stack(d_logits))
+                        torch.std(torch.stack(d_logits), axis=-1).mean()
                     )
+                print(d_logit_list[-1].shape)
                 logit_list.append(true_logits.cpu())
 
                 print(
@@ -402,7 +404,7 @@ class Experiment:
         y_true = torch.cat(y_true_list)
 
         logging.info(
-            "[Logit variance wrt noise]: {:.3f}%".format(
+            "[Logit variance wrt noise]: {:.3f}".format(
                 torch.mean(d_logits) # Average variance over all instances over N_samples
             )
         )
