@@ -385,7 +385,7 @@ class Experiment:
                     d_logits.append(d_logit.detach().cpu())
 
                 d_logit_list.append(
-                        torch.std(torch.cat(d_logits))
+                        torch.std(torch.stack(d_logits))
                     )
                 logit_list.append(true_logits.cpu())
 
@@ -398,7 +398,7 @@ class Experiment:
                 )
 
         logits = torch.cat(logit_list)
-        d_logits = torch.cat(d_logit_list)
+        d_logits = torch.stack(d_logit_list)
         y_true = torch.cat(y_true_list)
 
         logging.info(
