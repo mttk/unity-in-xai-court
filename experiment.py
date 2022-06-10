@@ -380,7 +380,7 @@ class Experiment:
                 d_logits = []
                 for _ in range(self.N_samples):
                     # Consider increasing norm gradually
-                    d_hidden = torch.randn(hidden.shape) * noise_scale
+                    d_hidden = torch.randn(hidden.shape, device=noise_scale.device) * noise_scale
                     d_logit = model.decode(hidden + d_hidden, output_dict={})
                     d_logits.append(d_logit.detach().cpu())
 
