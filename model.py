@@ -163,7 +163,7 @@ class JWAttentionClassifier(nn.Module, CaptumCompatible, AcquisitionModel):
         return hidden, (attn_weights, o)
 
     def forward_inner(self, embedded_tokens, lengths):
-        hidden, _ = self.encode(embedded_tokens, lengths)
+        hidden, (_, rnn_outputs) = self.encode(embedded_tokens, lengths)
 
         # Perform decoding
         pred = self.decoder(hidden)  # [Bx1]
