@@ -385,7 +385,7 @@ class Experiment:
                     d_logits.append(d_logit.detach().cpu())
 
                 d_logit_list.append(
-                        torch.std(d_logits)
+                        torch.std(torch.cat(d_logits))
                     )
                 logit_list.append(logits.cpu())
 
