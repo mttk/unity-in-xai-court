@@ -382,13 +382,13 @@ class Experiment:
                     # Consider increasing norm gradually
                     d_hidden = torch.randn(hidden.shape, device=noise_scale.device) * noise_scale
                     d_logit = model.decode(hidden + d_hidden, output_dict={})
-                    d_logits.append(d_logit.detach().cpu()) # 32 x 1
+                    d_logits.append(d_logit.squeeze().detach().cpu()) # 32 x 1
 
                 print("Logits shape", torch.cat(d_logits).shape)
                 print("Logits shape", torch.stack(d_logits).shape)
                 
                 d_logit_list.append(
-                        torch.std(torch.stack(d_logits), axis=-1).mean()
+                        torch.std(torch.stack(d_logits), axis=0).mean()
                     )
                 print(d_logit_list[-1].shape)
                 logit_list.append(true_logits.cpu())
