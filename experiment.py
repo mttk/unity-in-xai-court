@@ -384,9 +384,9 @@ class Experiment:
                     d_logit = model.decode(hidden + d_hidden, output_dict={})
                     d_logits.append(d_logit.squeeze().detach().cpu()) # 32 x 1
 
-                print("Logits shape", torch.cat(d_logits).shape)
-                print("Logits shape", torch.stack(d_logits).shape)
-                
+                # print("Logits shape", torch.cat(d_logits).shape)
+                # print("Logits shape", torch.stack(d_logits).shape)
+
                 d_logit_list.append(
                         torch.std(torch.stack(d_logits), axis=0).mean()
                     )
