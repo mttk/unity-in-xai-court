@@ -356,8 +356,7 @@ class Experiment:
     def _evaluate_smoothness(self, model):
         model.eval()
 
-        data = self.train_iter # Evaluating on train because the instances
-                                # there are observed
+        data = self.test_iter
 
         logit_list = []
         d_logit_list = []
