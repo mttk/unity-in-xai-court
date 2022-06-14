@@ -127,9 +127,7 @@ def make_parser():
     parser.add_argument(
         "--l2", type=float, default=1e-5, help="l2 regularization (weight decay)"
     )
-    parser.add_argument(
-        "--bi", action="store_false", help="[DOn't USE] bidirectional encoder"
-    )
+    parser.add_argument("--bi", action="store_true", help="Bidirectional encoder")
     parser.add_argument("--freeze", action="store_true", help="Freeze embeddings")
 
     # DistillBERT arguments

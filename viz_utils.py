@@ -171,6 +171,7 @@ def agreement_average(df):
     new_df = pd.DataFrame()
     new_df["agreement"] = grouped.agreement.agg(np.mean)
     new_df["correlation"] = grouped.correlation.agg(np.mean)
+    new_df["std"] = grouped.agreement.agg(np.std)
     return new_df
 
 
@@ -514,7 +515,7 @@ def plot_agreement_matrix(
             handles, labels = axs[j][i].get_legend_handles_labels()
             g.legend(handles, labels)
             g.legend(loc="center", bbox_to_anchor=(0, -0.5), ncol=1)
-    plt.show()
+    return fig
 
 
 def plot_attribute_matrix(
@@ -534,7 +535,7 @@ def plot_attribute_matrix(
         len(experiments), len(attributes) + 1, figsize=figsize, sharex=True
     )
     fig.subplots_adjust(wspace=0.25)
-    for j, ((results, meta), model) in enumerate(zip(experiments, models)):
+    for i, ((results, meta), model) in enumerate(zip(experiments, models)):
         df_tr, df_agr, df_crt_train, df_crt_test, df_attr = results_to_df(results, meta)
         df_crt_avg = cartography_average(df_crt_test)
         dfs = []
@@ -582,7 +583,7 @@ def plot_attribute_matrix(
         major_df = pd.concat(dfs)
         ips = meta["interpret_pairs"]
 
-        for i, attribute in enumerate(attributes + ["length"]):
+        for j, attribute in enumerate(attributes + ["length"]):
             df_filt = major_df[major_df.attribute == attribute]
             axs[j][i].set_title(attribute)
             g = sns.barplot(
@@ -600,3 +601,134 @@ def plot_attribute_matrix(
                 rotation=30, labels=ips, ha="right", rotation_mode="anchor"
             )
     plt.show()
+
+
+def plot_agreement_cartography_size(
+    df, meta, agreement, subsample=None, show_hist=True
+):
+    dataframe = cartography_average(df)
+    dataframe["agreement"] = agreement
+    if subsample:
+        dataframe = dataframe.sample(n=subsample)
+    dataframe = dataframe.sort_values("agreement")
+    dataframe["weights"] = dataframe.agreement
+    dataframe = dataframe[dataframe.agreement >= 0.0]
+    dataframe["agreement"] = [f"{x:.1f}" for x in dataframe["agreement"]]
+
+    dataframe = dataframe.assign(
+        corr_frac=lambda d: d.correctness / d.correctness.max()
+    )
+    dataframe["correct"] = [f"{x:.1f}" for x in dataframe["corr_frac"]]
+
+    main_metric = "variability"
+    other_metric = "confidence"
+
+    hue = "agreement"
+    num_hues = len(dataframe[hue].unique().tolist())
+    style = hue if num_hues < 8 else None
+
+    if not show_hist:
+        fig, axs = plt.subplots(1, 1, figsize=(8, 4))
+        ax0 = axs
+    else:
+        fig = plt.figure(
+            figsize=(16, 10),
+        )
+        gs = fig.add_gridspec(2, 3, height_ratios=[5, 1])
+
+        ax0 = fig.add_subplot(gs[0, :])
+
+    ### Make the scatterplot.
+
+    # Choose a palette.
+    pal = reversed(sns.color_palette("magma", num_hues))
+    #     pal = sns.diverging_palette(260, 15, n=num_hues, sep=10, center="dark")
+
+    plot = sns.scatterplot(
+        x=main_metric,
+        y=other_metric,
+        ax=ax0,
+        data=dataframe,
+        hue=hue,
+        palette=pal,
+        style=style,
+        size="weights",
+        sizes=(40, 400),
+        s=30,
+    )
+
+    # Annotate Regions.
+    bb = lambda c: dict(boxstyle="round,pad=0.3", ec=c, lw=2, fc="white")
+    #     an1 = ax0.annotate(
+    #         "ambiguous",
+    #         xy=(0.9, 0.5),
+    #         xycoords="axes fraction",
+    #         fontsize=15,
+    #         color="black",
+    #         va="center",
+    #         ha="center",
+    #         bbox=bb("black"),
+    #     )
+    #     an2 = ax0.annotate(
+    #         "easy-to-learn",
+    #         xy=(0.27, 0.85),
+    #         xycoords="axes fraction",
+    #         fontsize=15,
+    #         color="black",
+    #         va="center",
+    #         ha="center",
+    #         bbox=bb("r"),
+    #     )
+    #     an3 = ax0.annotate(
+    #         "hard-to-learn",
+    #         xy=(0.35, 0.25),
+    #         xycoords="axes fraction",
+    #         fontsize=15,
+    #         color="black",
+    #         va="center",
+    #         ha="center",
+    #         bbox=bb("b"),
+    #     )
+
+    if not show_hist:
+        plot.legend(
+            ncol=1,
+            bbox_to_anchor=(1.01, 0.5),
+            loc="center left",
+            fancybox=True,
+            shadow=True,
+        )
+    else:
+        plot.legend(fancybox=True, shadow=True, ncol=1)
+    plot.set_xlabel("variability")
+    plot.set_ylabel("confidence")
+
+    if show_hist:
+        plot.set_title(
+            f"{meta['dataset']} Data Map - {meta['model']} model - {len(df)} datapoints",
+            fontsize=17,
+        )
+
+        # Make the histograms.
+        ax1 = fig.add_subplot(gs[1, 0])
+        ax2 = fig.add_subplot(gs[1, 1])
+        ax3 = fig.add_subplot(gs[1, 2])
+
+        plott0 = dataframe.hist(column=["confidence"], ax=ax1, color="#622a87")
+        plott0[0].set_title("")
+        plott0[0].set_xlabel("confidence")
+        plott0[0].set_ylabel("density")
+
+        plott1 = dataframe.hist(column=["variability"], ax=ax2, color="teal")
+        plott1[0].set_title("")
+        plott1[0].set_xlabel("variability")
+
+        plot2 = sns.countplot(x="correct", data=dataframe, color="#86bf91", ax=ax3)
+        ax3.xaxis.grid(True)  # Show the vertical gridlines
+
+        plot2.set_title("")
+        plot2.set_xlabel("correctness")
+        plot2.set_ylabel("")
+
+    fig.tight_layout()
+    return fig
