@@ -172,6 +172,10 @@ class Experiment:
             cartography_trends["test"]["is_correct"].append(is_correct)
             cartography_trends["test"]["true_probs"].append(true_probs)
 
+        # Save model
+        logging.info("Saving the model...")
+        torch.save(model, "chkpts/model.pt")
+
         # 2) Dataset cartography
         logging.info("Computing dataset cartography...")
         cartography_results = {}
@@ -193,7 +197,7 @@ class Experiment:
         results["cartography"]["train"] = cartography_results["train"]
         results["cartography"]["test"] = cartography_results["test"]
 
-        return results
+        return results, model
 
     def _train_model(self, model, optimizer, criterion, train_iter):
         model.train()
