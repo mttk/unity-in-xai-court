@@ -213,6 +213,11 @@ def make_parser():
         "--warm-start-size", type=int, default=-1, help="Initial AL batch size."
     )
 
+    # Number of samples for perturbation experiment (smoothness approx)
+    parser.add_argument(
+        "--perturb-samples", type=int, default=1000, help="Perturbation samples."
+    )
+
     return parser.parse_args()
 
 

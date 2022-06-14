@@ -199,6 +199,43 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
         return {"accuracy": self.metrics["accuracy"].get_metric(reset=reset)}
 
+    def get_encoded(self, inputs, lengths):
+        output_dict = {}
+        # Create padding mask
+        # http://docs.allennlp.org/v0.9.0/api/allennlp.nn.util.html#allennlp.nn.util.get_text_field_mask
+        # 0 where padding, 1 otherwise
+        pad_idx = self.vocab.get_padding_index()
+        attention_mask = (tokens != pad_idx).bool()  # Orig impl was .long()
+
+        embedding_output = self.embeddings(tokens)  # (bs, seq_len, dim)
+        head_mask = attention_mask.unsqueeze(0).unsqueeze(2).unsqueeze(-1)
+        head_mask = head_mask.expand(
+            self.encoder.n_layers, -1, self.encoder.n_heads, -1, attention_mask.shape[1]
+        )
+        # print(head_mask.shape)
+
+        encoder_output = self.encoder(
+            inputs_embeds=embedded_tokens,
+            attention_mask=attention_mask,
+            head_mask=head_mask,
+            output_attentions=output_attentions,
+        )
+
+        hidden_state = encoder_output[0]  # (bs, seq_len, dim)
+        return hidden_state
+
+    def decode(self, hidden_state, output_dict):
+        pooled_output = hidden_state[:, 0]  # (bs, dim) # CLS Token
+        output_dict["hiddens"] = hidden_state  # B, T, D
+
+        # Single hidden layer decoder
+        pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
+        pooled_output = nn.ReLU()(pooled_output)  # (bs, dim)
+        pooled_output = self.dropout(pooled_output)  # (bs, dim)
+        logits = self.classifier(pooled_output)  # (bs, dim)
+        output_dict["logits"] = logits
+        return logits
+
     def forward_inner(
         self, embedded_tokens, attention_mask, label, output_attentions, output_dict
     ):
@@ -219,15 +256,7 @@ class DistilBertForSequenceClassification(torch.nn.Module, CaptumCompatible):
         )
 
         hidden_state = encoder_output[0]  # (bs, seq_len, dim)
-        pooled_output = hidden_state[:, 0]  # (bs, dim) # CLS Token
-        output_dict["hiddens"] = hidden_state  # B, T, D
-
-        # Single hidden layer decoder
-        pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
-        pooled_output = nn.ReLU()(pooled_output)  # (bs, dim)
-        pooled_output = self.dropout(pooled_output)  # (bs, dim)
-        logits = self.classifier(pooled_output)  # (bs, dim)
-        output_dict["logits"] = logits
+        logits = self.decode(hidden_state, output_dict)
 
         if output_attentions:
             # Tuple of n_layer dicts of tensors of shape (bs, ..., seq_length)

@@ -51,6 +51,7 @@ class Experiment:
         self.device = device
         self.args = args
         self.meta = meta
+        self.N_samples = args.perturb_samples
 
         test_batch_size = 4 if args.model_name == "DBERT" else 32
 
@@ -186,7 +187,10 @@ class Experiment:
             cartography_trends["test"]
         )
 
-        # 3) Store results.
+        # 3) MC-Evaluate local smoothness
+        smoothness_results = self._evaluate_smoothness(model)
+
+        # 4) Store results.
         results = {}
         results["train"] = train_results
         results["eval"] = eval_results
@@ -196,6 +200,8 @@ class Experiment:
         results["cartography"] = {}
         results["cartography"]["train"] = cartography_results["train"]
         results["cartography"]["test"] = cartography_results["test"]
+        results["smoothness"] = {}
+        results["smoothness"]["logit_variance"] = smoothness_results["logit_variance"]
 
         return results, model
 
@@ -349,6 +355,67 @@ class Experiment:
         logging.info(confusion_matrix)
 
         result_dict = {"accuracy": accuracy / len(self.test_set), "f1": f1}
+        return result_dict
+
+    def _evaluate_smoothness(self, model):
+        model.eval()
+
+        data = self.test_iter
+
+        logit_list = []
+        d_logit_list = []
+        y_true_list = []
+        with torch.inference_mode():
+            for batch_num, batch in enumerate(data):
+                t = time.time()
+
+                # Unpack batch & cast to device
+                (x, lengths), y = batch.text, batch.label
+
+                y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
+                y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
+
+                hidden = model.get_encoded(x, lengths) # [BxH]
+                true_logits = model.decode(hidden, output_dict={})
+                # Perturbation experiment: explore local space around hidden representation
+                hidden_l2 = torch.norm(hidden, p=2, dim=-1) # [Bx1]
+                noise_scale = torch.mean(hidden_l2) / 4.
+
+                d_logits = []
+                for _ in range(self.N_samples):
+                    # Consider increasing norm gradually
+                    d_hidden = torch.randn(hidden.shape, device=noise_scale.device) * noise_scale
+                    d_logit = model.decode(hidden + d_hidden, output_dict={})
+                    d_logits.append(d_logit.squeeze().detach().cpu()) # 32 x 1
+
+                # print("Logits shape", torch.cat(d_logits).shape)
+                # print("Logits shape", torch.stack(d_logits).shape)
+
+                d_logit_list.append(
+                        torch.std(torch.stack(d_logits), axis=0)
+                    )
+                # print(d_logit_list[-1].shape)
+                logit_list.append(true_logits.cpu())
+
+                print(
+                    "[Batch]: {}/{} in {:.5f} seconds".format(
+                        batch_num, len(data), time.time() - t
+                    ),
+                    end="\r",
+                    flush=True,
+                )
+
+        logits = torch.cat(logit_list)
+        d_logits = torch.cat(d_logit_list)
+        y_true = torch.cat(y_true_list)
+
+        logging.info(
+            "[Logit variance wrt noise]: {:.3f}".format(
+                torch.mean(d_logits) # Average variance over all instances over N_samples
+            )
+        )
+
+        result_dict = {"logit_variance": d_logits}
         return result_dict
 
     @staticmethod
