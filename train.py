@@ -123,7 +123,7 @@ def make_parser():
     parser.add_argument(
         "--batch_size", type=int, default=32, metavar="N", help="batch size"
     )
-    parser.add_argument("--dropout", type=float, default=0.0, help="dropout")
+    parser.add_argument("--dropout", type=float, default=0, help="dropout")
     parser.add_argument(
         "--l2", type=float, default=1e-5, help="l2 regularization (weight decay)"
     )

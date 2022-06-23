@@ -375,25 +375,26 @@ class Experiment:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
                 y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
 
-                hidden = model.get_encoded(x, lengths) # [BxH]
+                hidden = model.get_encoded(x, lengths)  # [BxH]
                 true_logits = model.decode(hidden, output_dict={})
                 # Perturbation experiment: explore local space around hidden representation
-                hidden_l2 = torch.norm(hidden, p=2, dim=-1) # [Bx1]
-                noise_scale = torch.mean(hidden_l2) / 4.
+                hidden_l2 = torch.norm(hidden, p=2, dim=-1)  # [Bx1]
+                noise_scale = torch.mean(hidden_l2) / 4.0
 
                 d_logits = []
                 for _ in range(self.N_samples):
                     # Consider increasing norm gradually
-                    d_hidden = torch.randn(hidden.shape, device=noise_scale.device) * noise_scale
+                    d_hidden = (
+                        torch.randn(hidden.shape, device=noise_scale.device)
+                        * noise_scale
+                    )
                     d_logit = model.decode(hidden + d_hidden, output_dict={})
-                    d_logits.append(d_logit.squeeze().detach().cpu()) # 32 x 1
+                    d_logits.append(d_logit.squeeze().detach().cpu())  # 32 x 1
 
                 # print("Logits shape", torch.cat(d_logits).shape)
                 # print("Logits shape", torch.stack(d_logits).shape)
 
-                d_logit_list.append(
-                        torch.std(torch.stack(d_logits), axis=0)
-                    )
+                d_logit_list.append(torch.std(torch.stack(d_logits), axis=0))
                 # print(d_logit_list[-1].shape)
                 logit_list.append(true_logits.cpu())
 
@@ -411,7 +412,9 @@ class Experiment:
 
         logging.info(
             "[Logit variance wrt noise]: {:.3f}".format(
-                torch.mean(d_logits) # Average variance over all instances over N_samples
+                torch.mean(
+                    d_logits
+                )  # Average variance over all instances over N_samples
             )
         )
 

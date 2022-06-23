@@ -61,13 +61,13 @@ def extract_data(exp_set, interpret_pairs):
         train_vals = [tr["loss"] for tr in train]
         test = experiment["eval"]
         test_vals = [te["accuracy"] for te in test]
-        # f1_vals = [te["f1"] for te in test]
+        f1_vals = [te["f1"] for te in test]
         df_tr = pd.DataFrame(
             {
                 "epoch": range(len(train_vals)),
                 "train_loss": train_vals,
                 "test_accuracy": test_vals,
-                # "test_f1": f1_vals,
+                "test_f1": f1_vals,
             }
         )
         df_tr["experiment"] = exp_index
