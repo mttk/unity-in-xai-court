@@ -7,6 +7,7 @@ import itertools
 
 from datetime import datetime
 from pprint import pprint
+from attr import attr
 
 import numpy as np
 import torch
@@ -473,6 +474,20 @@ def interpret_evaluate(interpreters, model, data, args, meta, use_rationales=Tru
     #  print(k, v[0].shape)
 
     return result_dict
+
+
+def faithfulness(model, attributions, data):
+    faithfulness = {k: [] for k, v in attributions.items()}
+    with torch.no_grad():
+        for batch in data:
+            for k, v in attributions.items():
+                attr = attributions[k]
+                print(attr[0].shape, attr[1].shape)
+                for p in range(10, 100 + 10, 10):
+                    inputs, _ = batch.text
+                    tokens = inputs.clone()
+                    print(tokens)
+                    model(tokens)
 
 
 def experiment(args, meta, train_dataset, val_dataset, test_dataset, restore=None):
