@@ -20,6 +20,8 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from random import Random
 
+from podium.vocab import Special, UNK, PAD
+
 
 from transformers import BertTokenizer
 
@@ -31,6 +33,10 @@ from eraser.eraser_utils import (
     annotations_from_jsonl,
     Annotation,
 )
+
+
+class MASK(Special):
+    token = "<MASK>"
 
 
 class BucketIterator(Iterator):
@@ -575,7 +581,7 @@ def load_dataset(
     data_dir, meta, tokenizer=None, max_vocab_size=20_000, max_seq_len=200
 ):
     if tokenizer is None:
-        vocab = Vocab(max_size=max_vocab_size)
+        vocab = Vocab(max_size=max_vocab_size, specials=(UNK(), PAD(), MASK()))
         fields = [
             Field("id", disable_batch_matrix=True),
             Field(

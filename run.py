@@ -26,6 +26,10 @@ if __name__ == "__main__":
 
     (train, val, test), vocab = dataloader(meta=meta, tokenizer=tokenizer)
 
+    if tokenizer:
+        mask_token_id = tokenizer.mask_token_id
+    else:
+        mask_token_id = 2
     # Construct correlation metrics
     correlations = [get_corr(key)() for key in args.correlation_measures]
 
@@ -79,7 +83,9 @@ if __name__ == "__main__":
             criterion = nn.CrossEntropyLoss()
             meta.num_targets = meta.num_labels
 
-        experiment = Experiment(train, test, device, args, meta, tokenizer)
+        experiment = Experiment(
+            train, test, device, args, meta, tokenizer, mask_token_id
+        )
         meta_info["test_lengths"] = experiment.test_lengths.tolist()
         meta_info["test_mapping"] = experiment.get_id_mapping()
 

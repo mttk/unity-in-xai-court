@@ -44,7 +44,9 @@ def compute_forgetfulness(epochwise_tensor):
 
 
 class Experiment:
-    def __init__(self, train_set, test_set, device, args, meta):
+    def __init__(
+        self, train_set, test_set, device, args, meta, tokenizer, mask_token_id
+    ):
         self.train_set = train_set
         self.test_set = test_set
         self.batch_size = args.batch_size
@@ -64,6 +66,8 @@ class Experiment:
 
         self.test_lengths = self.extract_lengths()
         self.id_mapping = self.get_id_mapping()
+        self.tokenizer = tokenizer
+        self.mask_token_id = mask_token_id
 
     def run(
         self,
@@ -138,25 +142,23 @@ class Experiment:
 
             # c) Calculate intepretability metrics
             logging.info("Calculating intepretability metrics...")
-            if self.args.model_name != "vanilla-DBERT":
-                intepret_result_dict = interpret_evaluate(
-                    interpreters,
-                    model,
-                    self.test_iter,
-                    self.args,
-                    self.meta,
-                    use_rationales=False,
-                )
-                scores, raw_correlations = pairwise_correlation(
-                    intepret_result_dict["attributions"], correlations
-                )
-                attributions_results.append(intepret_result_dict["attributions"])
-                logging.info("Interpretability scores", scores)
-            else:
-                # Make dummy scores and correlations sos code deosn't break
-                scores = []
-                raw_correlations = []
-                attributions_results.append([])
+            intepret_result_dict = interpret_evaluate(
+                interpreters,
+                model,
+                self.test_iter,
+                self.args,
+                self.meta,
+                use_rationales=False,
+            )
+            scores, raw_correlations = pairwise_correlation(
+                intepret_result_dict["attributions"], correlations
+            )
+            attributions_results.append(intepret_result_dict["attributions"])
+            logging.info("Interpretability scores", scores)
+
+            faithfulness = self.faithfulness(
+                model, intepret_result_dict["attributions"], self.test_iter
+            )
 
             agreement_results.append(scores)
             correlation_results.append(raw_correlations)
@@ -226,17 +228,7 @@ class Experiment:
             y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
             y_true_list.append(y)
 
-            if self.args.model_name != "vanilla-DBERT":
-                # Vanilla distilBert returns only logits
-                logits, return_dict = model(x, lengths)
-            else:
-                maxlen = lengths.max()
-                mask = (
-                    torch.arange(maxlen, device=lengths.device)[None, :]
-                    >= lengths[:, None]
-                )
-                logits = model(x, attention_mask=mask).logits
-
+            logits, return_dict = model(x, lengths)
             logit_list.append(logits)
 
             # Bookkeeping and cast label to float
@@ -313,15 +305,7 @@ class Experiment:
                 y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
                 y_true_list.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
 
-                if self.args.model_name != "vanilla-DBERT":
-                    logits, _ = model(x, lengths)
-                else:
-                    maxlen = lengths.max()
-                    mask = (
-                        torch.arange(maxlen, device=lengths.device)[None, :]
-                        >= lengths[:, None]
-                    )
-                    logits = model(x, attention_mask=mask).logits
+                logits, _ = model(x, lengths)
                 logit_list.append(logits.cpu())
 
                 # Bookkeeping and cast label to float
@@ -356,6 +340,62 @@ class Experiment:
 
         result_dict = {"accuracy": accuracy / len(self.test_set), "f1": f1}
         return result_dict
+
+    def faithfulness(self, model, attributions, data):
+        logits = {
+            k: {p: [] for p in np.arange(0, 1 + 0.1, 0.1)}
+            for k, v in attributions.items()
+        }
+        new_attrs = {}
+        for interpret, attrs in attributions.items():
+            max_size = np.max([attr.size for attr in attrs])
+            arrays = [
+                np.pad(a, (0, max_size - a.size), mode="constant", constant_values=0)
+                for a in attrs
+            ]
+            new_attrs[interpret] = np.vstack(arrays)
+        y_true = []
+        base_index = 0
+        with torch.no_grad():
+            for batch_num, batch in enumerate(data, 1):
+                print(f"Batch num {batch_num}/{len(data)}")
+                inputs, lengths = batch.text
+                y = batch.label
+                y = y.squeeze()  # y needs to be a 1D tensor for xent(batch_size)
+                y_true.append(y.reshape(1).cpu() if y.dim() == 0 else y.cpu())
+
+                tokens = inputs.clone()
+                for interpret, attrs in attributions.items():
+                    for p in np.arange(0, 1 + 0.1, 0.1):
+                        if p > 0:
+                            for i in range(inputs.shape[0]):
+                                attrs_i = attrs[base_index + i]
+                                num_tokens = int(p * attrs_i.size)
+                                sorted_ = np.argsort(-attrs_i)
+                                sorted_cut = sorted_[:num_tokens]
+                                tokens[i][sorted_cut] = self.mask_token_id
+
+                        k_logits, _ = model(tokens, lengths)
+                        logits[interpret][p].append(k_logits.cpu())
+
+                base_index += inputs.shape[0]
+
+        y_true = torch.cat(y_true)
+        f1_average = "binary" if torch.unique(y_true).numel() == 2 else "micro"
+        preds = {k: {} for k, v in attributions.items()}
+        for k, v in logits.items():
+            for p, k_logits in v.items():
+                probs = logits_to_probs(torch.cat(k_logits))
+                preds[k][p] = torch.argmax(probs, dim=1)
+
+        scores = {k: [] for k, v in attributions.items()}
+        for k, v in preds.items():
+            for p, pred_vals in v.items():
+                f1 = f1_score(y_true=y_true, y_pred=pred_vals, average=f1_average)
+                scores[k].append(f1)
+
+        print(scores)
+        return scores
 
     def _evaluate_smoothness(self, model):
         model.eval()
