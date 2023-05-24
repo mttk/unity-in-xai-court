@@ -1,4 +1,3 @@
 ## Unity in XAI court
 
-- Twitter sentiment analysis dataset sourced from: https://www.kaggle.com/c/tweet-sentiment-extraction/
-- Movie review dataset (IMDB annotated with rationales) sourced from eraser: https://www.eraserbenchmark.com/
+Code for the paper [Easy to Decide, Hard to Agree: Reducing Disagreements Between Saliency Methods](https://arxiv.org/pdf/2211.08369.pdf), to appear in the Findings of ACL 2023.
